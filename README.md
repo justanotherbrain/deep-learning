@@ -5,4 +5,4 @@
 Here is all of the code and our edits for our Deep Learning course with Yann LeCun.
 
 ### Note ###
-Make sure you do not upload the model.net files!
+Make sure you do not upload the model.net files! (not that github would even let you).
