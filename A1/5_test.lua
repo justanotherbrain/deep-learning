@@ -14,8 +14,13 @@ print '==> defining test procedure'
 
 -- test function
 function test()
+   
    -- local vars
    local time = sys.clock()
+
+   -- top score to save corresponding to saved model
+   top_score = top_score or 0.1
+
 
    -- averaged param use?
    if average then
@@ -53,10 +58,29 @@ function test()
    print(confusion)
 
    -- update log/plot
-   testLogger:add{['% mean class accuracy (test set)'] = confusion.totalValid * 100}
+   testLogger:add{['% mean class accuracy (test set)'] = confusion.totalValid * 100, 
+      ['1'] = confusion.valids[1],
+      ['2'] = confusion.valids[2],
+      ['3'] = confusion.valids[3],
+      ['4'] = confusion.valids[4],
+      ['5'] = confusion.valids[5],
+      ['6'] = confusion.valids[6],
+      ['7'] = confusion.valids[7],
+      ['8'] = confusion.valids[8],
+      ['9'] = confusion.valids[9],
+      ['0'] = confusion.valids[10]
+   }
    if opt.plot then
       testLogger:style{['% mean class accuracy (test set)'] = '-'}
       testLogger:plot()
+   end
+
+   if top_score < confusion.totalValid * 100 then
+      local top_filename = paths.concat(opt.save, 'winning_model.net')
+      os.execute('mkdir -p ' .. sys.dirname(top_filename))
+      print('==> saving new top model to '..top_filename)
+      torch.save(top_filename, model)
+      top_score = confusion.totalValid * 100
    end
 
    -- averaged param use?

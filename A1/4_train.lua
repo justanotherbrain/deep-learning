@@ -26,7 +26,6 @@ if not opt then
    cmd:text('SVHN Training/Optimization')
    cmd:text()
    cmd:text('Options:')
-   cmd:option('-save', 'results', 'subdirectory to save/log experiments in')
    cmd:option('-visualize', false, 'visualize input data and weights during training')
    cmd:option('-plot', false, 'live plot')
    cmd:option('-optimization', 'SGD', 'optimization method: SGD | ASGD | CG | LBFGS')
@@ -59,6 +58,12 @@ confusion = optim.ConfusionMatrix(classes)
 -- Log results to files
 trainLogger = optim.Logger(paths.concat(opt.save, 'train.log'))
 testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
+paramLogger = optim.Logger(paths.concat(opt.save, 'params.log'))
+
+
+paramLogger:add{['maxIter'] = opt.maxIter, ['momentum'] = opt.momentum,
+ ['weightDecay'] = opt.weightDecay, ['model'] = opt.model, ['optimization'] = opt.optimization, ['learningRate'] = opt.learningRate, ['loss'] = opt.loss, ['batchSize'] = opt.batchSize}
+
 
 -- Retrieve parameters and gradients:
 -- this extracts and flattens all the trainable parameters of the mode
@@ -194,7 +199,19 @@ function train()
    print(confusion)
 
    -- update logger/plot
-   trainLogger:add{['% mean class accuracy (train set)'] = confusion.totalValid * 100}
+   print(confusion.valids)
+   trainLogger:add{['% mean class accuracy (train set)'] = confusion.totalValid * 100,
+      ['1'] = confusion.valids[1],
+      ['2'] = confusion.valids[2],
+      ['3'] = confusion.valids[3],
+      ['4'] = confusion.valids[4],
+      ['5'] = confusion.valids[5],
+      ['6'] = confusion.valids[6],
+      ['7'] = confusion.valids[7],
+      ['8'] = confusion.valids[8],
+      ['9'] = confusion.valids[9],
+      ['0'] = confusion.valids[10]
+    }
    if opt.plot then
       trainLogger:style{['% mean class accuracy (train set)'] = '-'}
       trainLogger:plot()
