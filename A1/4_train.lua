@@ -199,7 +199,7 @@ function train()
    -- print confusion matrix
    print(confusion)
 
-   -- update logger/plot
+   -- update logger/plot ... along with accuracy scores for each digit
      trainLogger:add{['% mean class accuracy (train set)'] = confusion.totalValid * 100,
       ['1'] = confusion.valids[1],
       ['2'] = confusion.valids[2],

@@ -57,7 +57,7 @@ function test()
    -- print confusion matrix
    print(confusion)
 
-   -- update log/plot
+   -- update log/plot ... along with accuracy scores for each digit
    testLogger:add{['% mean class accuracy (test set)'] = confusion.totalValid * 100, 
       ['1'] = confusion.valids[1],
       ['2'] = confusion.valids[2],
@@ -70,11 +70,13 @@ function test()
       ['9'] = confusion.valids[9],
       ['0'] = confusion.valids[10]
    }
+   
    if opt.plot then
       testLogger:style{['% mean class accuracy (test set)'] = '-'}
       testLogger:plot()
    end
 
+   -- here we check to see if the current model is the best yet, and if so, save it
    if top_score < confusion.totalValid * 100 then
       local top_filename = paths.concat(opt.save, 'winning_model.net')
       os.execute('mkdir -p ' .. sys.dirname(top_filename))

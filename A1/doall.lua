@@ -20,6 +20,8 @@
 ----------------------------------------------------------------------
 print '==> processing options'
 
+-- current session's storage directory
+dir_name = os.date():gsub(' ','_') .. ''
 
 cmd = torch.CmdLine()
 cmd:text()
@@ -37,8 +39,7 @@ cmd:option('-model', 'convnet', 'type of model to construct: linear | mlp | conv
 cmd:option('-loss', 'nll', 'type of loss function to minimize: nll | mse | margin')
 
 -- training:
-
-dir_name = os.date():gsub(' ','_') .. ''
+-- opt.save is where everything is saved
 
 cmd:option('-save', 'experiments/' .. dir_name .. '-Results', 'subdirectory to save/log experiments in')
 cmd:option('-plot', false, 'live plot')
@@ -68,7 +69,9 @@ torch.manualSeed(opt.seed)
 ----------------------------------------------------------------------
 print '==> executing all'
 
+-- we do this to make sure that 'experiments exists and we can save our logs to it'
 os.execute('mkdir -p ' .. sys.dirname(opt.save))
+
 dofile '1_data.lua'
 dofile '2_model.lua'
 dofile '3_loss.lua'
