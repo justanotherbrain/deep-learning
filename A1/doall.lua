@@ -68,6 +68,7 @@ torch.manualSeed(opt.seed)
 ----------------------------------------------------------------------
 print '==> executing all'
 
+os.execute('mkdir -p ' .. sys.dirname(opt.save))
 dofile '1_data.lua'
 dofile '2_model.lua'
 dofile '3_loss.lua'

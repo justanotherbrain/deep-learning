@@ -56,6 +56,7 @@ classes = {'1','2','3','4','5','6','7','8','9','0'}
 confusion = optim.ConfusionMatrix(classes)
 
 -- Log results to files
+
 trainLogger = optim.Logger(paths.concat(opt.save, 'train.log'))
 testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
 paramLogger = optim.Logger(paths.concat(opt.save, 'params.log'))
