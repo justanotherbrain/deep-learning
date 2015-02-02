@@ -199,7 +199,7 @@ function train()
    print(confusion)
 
    -- update logger/plot
-   trainLogger:add{['% mean class accuracy (train set)'] = confusion.totalValid * 100,
+     trainLogger:add{['% mean class accuracy (train set)'] = confusion.totalValid * 100,
       ['1'] = confusion.valids[1],
       ['2'] = confusion.valids[2],
       ['3'] = confusion.valids[3],
