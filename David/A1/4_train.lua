@@ -109,9 +109,9 @@ print '==> setting up wrong classification loggers'--DG addition
 require 'csvigo'
 trainSampleWrong = {}
 testSampleWrong = {}
-for t = 1,trainData:size() do
-  trainSampleWrong[i] = {i,0}
-  testSampleWrong[i] = {i,0}
+for t = 1,trainData:size()+1 do
+  table.insert(trainSampleWrong[i],{i,0})
+  table.insert(testSampleWrong[i],{i,0})
 end
 
 function sampleComparer(a,b)
@@ -120,7 +120,7 @@ function sampleComparer(a,b)
   elseif type(b[1]) == 'string' then
     return false
   else
-      a[2] > b[2]
+    return a[2] > b[2]
   end
 end
 ----------------------------------------------------------------------
@@ -156,16 +156,14 @@ function train()
       -- create mini batch
       local inputs = {}
       local targets = {}
-      local localLabels = {}--DG addition
       for i = t,math.min(t+opt.batchSize-1,trainData:size()) do
          -- load new sample
          local input = trainData.data[shuffle[i]]
          local target = trainData.labels[shuffle[i]]
          if opt.type == 'double' then input = input:double()
          elseif opt.type == 'cuda' then input = input:cuda() end
-         table.insert(inputs, input)
+         table.insert(inputs, {input, shuffle[i]})--DG change, Inputs is now an array of tuples
          table.insert(targets, target)
-         table.insert(localLabels, shuffle[i])--DG addition
       end
 
       -- create closure to evaluate f(X) and df/dX
@@ -184,16 +182,16 @@ function train()
                        -- evaluate function for complete mini batch
                        for i = 1,#inputs do
                           -- estimate f
-                          local output = model:forward(inputs[i])
+                          local output = model:forward(inputs[i][1])
                           local err = criterion:forward(output, targets[i])
                           f = f + err
 
                           -- estimate df/dW
                           local df_do = criterion:backward(output, targets[i])
-                          model:backward(inputs[i], df_do)
+                          model:backward(inputs[i][1], df_do)
                           
-                          -- log if samples are wrong DG addition
-                          trainSampleWrong[localLabels[i]][2] = trainSampleWrong[localLabels[i]][2] + ((output ~= targets[i]) and 1 or 0)
+                          -- log if samples are wrong. DG addition
+                          trainSampleWrong[inputs[i][2]] = trainSampleWrong[inputs[i][2]] + ((output ~= targets[i]) and 1 or 0)
 
                           -- update confusion
                           confusion:add(output, targets[i])
