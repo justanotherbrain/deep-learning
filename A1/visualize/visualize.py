@@ -11,7 +11,6 @@ data = get_sessions(os.path.dirname(os.getcwd()) + '/experiments')
 def plot_session(session):
     """
     plot performance of each number for a given session
-    :rtype : object
     """
     plt.figure(figsize=(16,10))
     plt.title(session["date"] + " -- " + pretty(session["params"]))
