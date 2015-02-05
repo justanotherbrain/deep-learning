@@ -109,19 +109,18 @@ print '==> setting up wrong classification loggers'--DG addition
 require 'csvigo'
 trainSampleWrong = {}
 testSampleWrong = {}
-for t = 1,trainData:size()+1 do
-  table.insert(trainSampleWrong[i],{i,0})
-  table.insert(testSampleWrong[i],{i,0})
+for t = 1,trainData:size() do
+  table.insert(trainSampleWrong,0)
 end
-
+for t = 1,testData:size() do
+  table.insert(testSampleWrong,0)
+end
 function sampleComparer(a,b)
-  if type(a[1]) == 'string' then
-    return true
-  elseif type(b[1]) == 'string' then
-    return false
-  else
-    return a[2] > b[2]
+  if a[2] == b[2] then
+    return a[1] < b[1]
   end
+  
+  return a[2] > b[2]
 end
 ----------------------------------------------------------------------
 
@@ -133,9 +132,6 @@ function train()
    -- epoch tracker
    epoch = epoch or 1
    
-  --DG addition 
-  trainSampleWrong[trainData:size()+1] = {'Epoch:',epoch}
-  testSampleWrong[trainData:size()+1] = {'Epoch:',epoch}
    
    -- local vars
    local time = sys.clock()
