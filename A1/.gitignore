@@ -1,4 +1,4 @@
-experiments
+*.net
 .DS_Store
 test_32x32.t7
 train_32x32.t7
