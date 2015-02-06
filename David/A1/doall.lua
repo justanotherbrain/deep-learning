@@ -20,6 +20,9 @@
 ----------------------------------------------------------------------
 print '==> processing options'
 
+-- current session's storage directory
+dir_name = os.date():gsub(' ','_') .. ''
+
 cmd = torch.CmdLine()
 cmd:text()
 cmd:text('SVHN Loss Function')
@@ -34,8 +37,11 @@ cmd:option('-size', 'full', 'how many samples do we load: small | full | extra')
 cmd:option('-model', 'convnet', 'type of model to construct: linear | mlp | convnet')
 -- loss:
 cmd:option('-loss', 'nll', 'type of loss function to minimize: nll | mse | margin')
+
 -- training:
-cmd:option('-save', 'results', 'subdirectory to save/log experiments in')
+-- opt.save is where everything is saved
+
+cmd:option('-save', 'experiments/' .. dir_name .. '-Results', 'subdirectory to save/log experiments in')
 cmd:option('-plot', false, 'live plot')
 cmd:option('-optimization', 'SGD', 'optimization method: SGD | ASGD | CG | LBFGS')
 cmd:option('-learningRate', 1e-3, 'learning rate at t=0')
@@ -62,6 +68,9 @@ torch.manualSeed(opt.seed)
 
 ----------------------------------------------------------------------
 print '==> executing all'
+
+-- we do this to make sure that 'experiments exists and we can save our logs to it'
+os.execute('mkdir -p ' .. sys.dirname(opt.save))
 
 dofile '1_data.lua'
 dofile '2_model.lua'

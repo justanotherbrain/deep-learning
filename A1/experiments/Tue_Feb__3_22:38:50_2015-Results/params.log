@@ -1,0 +1,2 @@
+batchSize	loss	learningRate	model	weightDecay	momentum	maxIter	optimization	
+ 1.0000e+00	nll	 1.0000e-03	convnet	 0.0000e+00	 0.0000e+00	 2.0000e+00	LBFGS	
