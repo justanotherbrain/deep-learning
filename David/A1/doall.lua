@@ -70,7 +70,6 @@ torch.manualSeed(opt.seed)
 print '==> executing all'
 
 -- we do this to make sure that 'experiments exists and we can save our logs to it'
-os.execute('mkdir -p ' .. sys.dirname(opt.save))
 
 dofile '1_data.lua'
 dofile '2_model.lua'
