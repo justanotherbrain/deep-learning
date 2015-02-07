@@ -42,6 +42,8 @@ cmd:option('-loss', 'nll', 'type of loss function to minimize: nll | mse | margi
 -- opt.save is where everything is saved
 
 cmd:option('-save', 'experiments/' .. dir_name .. '-Results', 'subdirectory to save/log experiments in')
+-- training:
+cmd:option('-save', 'results', 'subdirectory to save/log experiments in')
 cmd:option('-plot', false, 'live plot')
 cmd:option('-optimization', 'SGD', 'optimization method: SGD | ASGD | CG | LBFGS')
 cmd:option('-learningRate', 1e-3, 'learning rate at t=0')
