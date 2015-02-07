@@ -15,7 +15,7 @@
 
 require 'torch'   -- torch
 require 'image'   -- for image transforms
-require 'nn'      -- provides all sorts of trainable modules/layers
+require 'cunn'      -- provides all sorts of trainable modules/layers
 
 ----------------------------------------------------------------------
 -- parse command line arguments
@@ -139,10 +139,10 @@ print(model)
 ----------------------------------------------------------------------
 ---- Visualization is quite easy, using gfx.image().
 --
---if opt.visualize then
---   if opt.model == 'convnet' then
---      print '==> visualizing ConvNet filters'
---      gfx.image(model:get(1).weight, {zoom=2, legend='L1'})
---      gfx.image(model:get(5).weight, {zoom=2, legend='L2'})
---   end
---end
+if opt.visualize then
+  if opt.model == 'convnet' then
+     print '==> visualizing ConvNet filters'
+     gfx.image(model:get(1).weight, {zoom=2, legend='L1'})
+     gfx.image(model:get(5).weight, {zoom=2, legend='L2'})
+  end
+end
