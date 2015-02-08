@@ -197,7 +197,8 @@ function train()
                           model:backward(inputs[i][1], df_do)
                           
                           -- log if samples are wrong. DG addition
-                          trainSampleWrong[inputs[i][2]] = trainSampleWrong[inputs[i][2]] + ((output ~= targets[i]) and 1 or 0)
+                          _, guess  = torch.max(output,1)
+                          trainSampleWrong[inputs[i][2]] = trainSampleWrong[inputs[i][2]] + ((guess[1] ~= targets[i]) and 1 or 0)
 
                           -- update confusion
                           confusion:add(output, targets[i])

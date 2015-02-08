@@ -18,6 +18,7 @@
 ----------------------------------------------------------------------
 
 ----------------------------------------------------------------------
+require 'torch'
 print '==> processing options'
 
 -- current session's storage directory
@@ -32,7 +33,7 @@ cmd:text('Options:')
 cmd:option('-seed', 1, 'fixed input seed for repeatable experiments')
 cmd:option('-threads', 2, 'number of threads')
 -- data:
-cmd:option('-size', 'full', 'how many samples do we load: small | full | extra')
+cmd:option('-size', 'small', 'how many samples do we load: small | full | extra | debug')
 -- model:
 cmd:option('-model', 'convnet', 'type of model to construct: linear | mlp | convnet')
 -- loss:
