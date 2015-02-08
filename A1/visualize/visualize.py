@@ -34,16 +34,17 @@ def plot_averages(all_data):
     plot the average performance for each set of params
     """
     plt.figure(figsize=(20,10))
-    for session in all_data:
+    for i,session in enumerate(all_data):
+        line_type = ['--' , '-.' ][i%2]
         x = np.array(xrange(0,len(session["test"]["avg"])))
         y_clip = np.clip(np.array(session["test"]["avg"]), 0.85,1.0)
         y = np.array(session["test"]["avg"])
         print session["params"]
         plt.subplot(1, 2, 1)
-        plt.plot(x, y_clip, label = pretty(session["params"]))
+        plt.plot(x, y_clip, ls=line_type, label = pretty(session["params"]))
         plt.subplot(1, 2, 2)
         plt.legend(loc='best')
-        plt.plot(x, y, label = pretty(session["params"]))
+        plt.plot(x, y, ls=line_type, label = pretty(session["params"]))
     plt.show()
 
 def read_args():
