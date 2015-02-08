@@ -126,7 +126,7 @@ for t = 1,testData:size() do
   table.insert(testSampleWrong,0)
 end
 function sampleComparer(a,b)
-  if a[2] == b[2] then
+  if a[2] == b[2] and type(a[1]) ~= 'string' and type(b[1]) ~= 'string' then
     return a[1] < b[1]
   end
   
