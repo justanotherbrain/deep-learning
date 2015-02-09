@@ -31,9 +31,9 @@ cmd:text()
 cmd:text('Options:')
 -- global:
 cmd:option('-seed', 1, 'fixed input seed for repeatable experiments')
-cmd:option('-threads', 2, 'number of threads')
+cmd:option('-threads', 6, 'number of threads')
 -- data:
-cmd:option('-size', 'small', 'how many samples do we load: small | full | extra | debug')
+cmd:option('-size', 'debug', 'how many samples do we load: small | full | extra | debug')
 -- model:
 cmd:option('-model', 'convnet', 'type of model to construct: linear | mlp | convnet')
 -- loss:
@@ -54,7 +54,10 @@ cmd:option('-momentum', 0, 'momentum (SGD only)')
 cmd:option('-t0', 1, 'start averaging at t0 (ASGD only), in nb of epochs')
 cmd:option('-maxIter', 2, 'maximum nb of iterations for CG and LBFGS')
 cmd:option('-type', 'double', 'type: double | float | cuda')
+cmd:option('-wrongThresh', 0.5, 'percentage of allowed misclassifications over all epochs')
+cmd:option('-retrain', true, 'retrain bad samples')
 cmd:text()
+--DG addition
 opt = cmd:parse(arg or {})
 
 -- nb of threads and fixed seed (for repeatable experiments)

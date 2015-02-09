@@ -98,21 +98,16 @@ function test()
    
    -- DG addition. Print updated list of mislabeled samples every few iterations
    testWrite = {}
-   trainWrite = {}
    for key, value in pairs(testSampleWrong) do
       table.insert(testWrite, {key,value})
    end
-   for key, value in pairs(trainSampleWrong) do
-      table.insert(trainWrite, {key,value})
-   end
-   table.insert(testWrite, {'Epoch',#testWrite+1})    
-   table.insert(trainWrite, {'Epoch',#trainWrite+1})   
+      table.insert(testWrite, {'Epoch',#testWrite+1})    
    table.sort(testWrite, sampleComparer)
-   table.sort(trainWrite, sampleComparer)
+
    testWrite[1][2] = epoch - 1
-   trainWrite[1][2] = epoch - 1
+   
    csvigo.save{path=paths.concat(opt.save, 'test_wrongSamples.log'), data=testWrite}
-   csvigo.save{path=paths.concat(opt.save, 'train_wrongSamples.log'), data=trainWrite}
+   
 
    
    -- next iteration:

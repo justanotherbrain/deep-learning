@@ -137,6 +137,80 @@ end
 ----------------------------------------------------------------------
 print '==> defining training procedure'
 
+function trainPoorPerforming()
+  
+    indicies = {}
+    local current = 2
+    while current < #trainWrite and (epoch - trainWrite[current][2]) / epoch <= opt.wrongThresh do
+        table.insert(indicies, trainWrite[current][1])
+        current = current + 1
+    end
+    print('==> retraining samples')
+    shuffle = torch.randperm(#indicies)
+    model:training()
+    for i = 1,#indicies,opt.batchSize do    
+      xlua.progress(i, #indicies)
+      -- create mini batch
+      local inputs = {}
+      local targets = {}
+      for t = i,math.min(i+opt.batchSize-1,#indicies) do
+         -- load new sample
+         local input = trainData.data[shuffle[t]]
+         local target = trainData.labels[shuffle[t]]
+         if opt.type == 'double' then input = input:double()
+         elseif opt.type == 'cuda' then input = input:cuda() end
+         table.insert(inputs, {input, shuffle[t]})--DG change, Inputs is now an array of tuples
+         table.insert(targets, target)
+      end
+
+      -- create closure to evaluate f(X) and df/dX
+      local feval = function(x)
+                       -- get new parameters
+                       if x ~= parameters then
+                          parameters:copy(x)
+                       end
+
+                       -- reset gradients
+                       gradParameters:zero()
+
+                       -- f is the average of all criterions
+                       local f = 0
+
+                       -- evaluate function for complete mini batch
+                       for i = 1,#inputs do
+                          -- estimate f
+
+                          local output = model:forward(inputs[i][1])
+                          local err = criterion:forward(output, targets[i])
+                          f = f + err
+
+                          -- estimate df/dW
+                          local df_do = criterion:backward(output, targets[i])
+                          model:backward(inputs[i][1], df_do)
+                          
+                          -- log if samples are wrong. DG addition
+                          _, guess  = torch.max(output,1)
+                          trainSampleWrong[inputs[i][2]] = trainSampleWrong[inputs[i][2]] + ((guess[1] ~= targets[i]) and 1 or 0)
+
+                       end
+
+                       -- normalize gradients and f(X)
+                       gradParameters:div(#inputs)
+                       f = f/#inputs
+
+                       -- return f and df/dX
+                       return f,gradParameters
+                    end
+
+      -- optimize on current mini-batch
+      if optimMethod == optim.asgd then
+         _,_ ,average = optimMethod(feval, parameters, optimState)
+      else
+         optimMethod(feval, parameters, optimState)
+      end
+    end
+end
+
 function train()
   
    -- epoch tracker
@@ -253,7 +327,20 @@ function train()
    os.execute('mkdir -p ' .. sys.dirname(filename))
    print('==> saving model to '..filename)
    torch.save(filename, model)
-
+   
+   trainWrite = {}
+   for key, value in pairs(trainSampleWrong) do
+      table.insert(trainWrite, {key,value})
+   end
+   table.insert(trainWrite, {'Epoch',#trainWrite+1})   
+   table.sort(trainWrite, sampleComparer)
+   trainWrite[1][2] = epoch - 1
+   csvigo.save{path=paths.concat(opt.save, 'train_wrongSamples.log'), data=trainWrite}
+  
+  if opt.retrain then
+    trainPoorPerforming()
+  end
+  
    -- next epoch
    confusion:zero()
    epoch = epoch + 1
