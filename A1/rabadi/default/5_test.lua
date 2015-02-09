@@ -12,8 +12,6 @@ require 'optim'   -- an optimization package, for online and batch methods
 ----------------------------------------------------------------------
 print '==> defining test procedure'
 
--- test function
-function test()
    
    -- local vars
    local time = sys.clock()
@@ -93,4 +91,3 @@ function test()
    
    -- next iteration:
    confusion:zero()
-end
