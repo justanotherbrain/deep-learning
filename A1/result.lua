@@ -8,7 +8,7 @@ function setup()
   testData = {
      data = loaded.X:transpose(3,4),
      labels = loaded.y[1],
-     size = function() return 10 end
+     size = function() return 26032 end
   }
   model = torch.load('model.net')
   results = {{'samp#','target', 'pred'}}
