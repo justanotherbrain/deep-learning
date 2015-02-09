@@ -19,7 +19,7 @@
 
 ----------------------------------------------------------------------
 print '==> processing options'
-
+require 'sys';
 -- current session's storage directory
 dir_name = os.date():gsub(' ','_') .. ''
 
