@@ -82,6 +82,10 @@ elseif opt.size == 'small' then
    print '==> using reduced training data, for fast experiments'
    trsize = 10000
    tesize = 2000
+ elseif opt.size == 'debug' then
+   print '==> using ultra-reduced training data, for debugging only'
+   trsize = 100
+   tesize = 10
 end
 
 ----------------------------------------------------------------------

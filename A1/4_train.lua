@@ -26,6 +26,10 @@ if not opt then
    cmd:text('SVHN Training/Optimization')
    cmd:text()
    cmd:text('Options:')
+
+
+   cmd:option('-save', 'results', 'subdirectory to save/log experiments in')
+
    cmd:option('-visualize', false, 'visualize input data and weights during training')
    cmd:option('-plot', false, 'live plot')
    cmd:option('-optimization', 'SGD', 'optimization method: SGD | ASGD | CG | LBFGS')
@@ -57,6 +61,7 @@ confusion = optim.ConfusionMatrix(classes)
 
 -- Log results to files
 
+
 trainLogger = optim.Logger(paths.concat(opt.save, 'train.log'))
 testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
 paramLogger = optim.Logger(paths.concat(opt.save, 'params.log'))
@@ -64,7 +69,6 @@ paramLogger = optim.Logger(paths.concat(opt.save, 'params.log'))
 
 paramLogger:add{['maxIter'] = opt.maxIter, ['momentum'] = opt.momentum,
  ['weightDecay'] = opt.weightDecay, ['model'] = opt.model, ['optimization'] = opt.optimization, ['learningRate'] = opt.learningRate, ['loss'] = opt.loss, ['batchSize'] = opt.batchSize}
-
 
 -- Retrieve parameters and gradients:
 -- this extracts and flattens all the trainable parameters of the mode
@@ -111,13 +115,34 @@ else
 end
 
 ----------------------------------------------------------------------
+print '==> setting up wrong classification loggers'--DG addition
+require 'csvigo'
+trainSampleWrong = {}
+testSampleWrong = {}
+for t = 1,trainData:size() do
+  table.insert(trainSampleWrong,0)
+end
+for t = 1,testData:size() do
+  table.insert(testSampleWrong,0)
+end
+function sampleComparer(a,b)
+  if a[2] == b[2] and type(a[1]) ~= 'string' and type(b[1]) ~= 'string' then
+    return a[1] < b[1]
+  end
+  
+  return a[2] > b[2]
+end
+----------------------------------------------------------------------
+
+----------------------------------------------------------------------
 print '==> defining training procedure'
 
 function train()
-
+  
    -- epoch tracker
    epoch = epoch or 1
-
+   
+   
    -- local vars
    local time = sys.clock()
 
@@ -143,7 +168,7 @@ function train()
          local target = trainData.labels[shuffle[i]]
          if opt.type == 'double' then input = input:double()
          elseif opt.type == 'cuda' then input = input:cuda() end
-         table.insert(inputs, input)
+         table.insert(inputs, {input, shuffle[i]})--DG change, Inputs is now an array of tuples
          table.insert(targets, target)
       end
 
@@ -163,13 +188,17 @@ function train()
                        -- evaluate function for complete mini batch
                        for i = 1,#inputs do
                           -- estimate f
-                          local output = model:forward(inputs[i])
+                          local output = model:forward(inputs[i][1])
                           local err = criterion:forward(output, targets[i])
                           f = f + err
 
                           -- estimate df/dW
                           local df_do = criterion:backward(output, targets[i])
-                          model:backward(inputs[i], df_do)
+                          model:backward(inputs[i][1], df_do)
+                          
+                          -- log if samples are wrong. DG addition
+                          _, guess  = torch.max(output,1)
+                          trainSampleWrong[inputs[i][2]] = trainSampleWrong[inputs[i][2]] + ((guess[1] ~= targets[i]) and 1 or 0)
 
                           -- update confusion
                           confusion:add(output, targets[i])
@@ -185,7 +214,7 @@ function train()
 
       -- optimize on current mini-batch
       if optimMethod == optim.asgd then
-         _,_,average = optimMethod(feval, parameters, optimState)
+         _,_ ,average = optimMethod(feval, parameters, optimState)
       else
          optimMethod(feval, parameters, optimState)
       end
@@ -198,6 +227,7 @@ function train()
 
    -- print confusion matrix
    print(confusion)
+
 
    -- update logger/plot ... along with accuracy scores for each digit
      trainLogger:add{['% mean class accuracy (train set)'] = confusion.totalValid * 100,
@@ -212,7 +242,8 @@ function train()
       ['9'] = confusion.valids[9],
       ['0'] = confusion.valids[10]
     }
-   if opt.plot then
+
+    if opt.plot then
       trainLogger:style{['% mean class accuracy (train set)'] = '-'}
       trainLogger:plot()
    end
