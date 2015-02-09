@@ -8,7 +8,7 @@ function setup()
   testData = {
      data = loaded.X:transpose(3,4),
      labels = loaded.y[1],
-     size = function() return 26032 end
+     size = function() return 10 end
   }
   model = torch.load('model.net')
   results = {{'samp#','target', 'pred'}}
@@ -20,10 +20,10 @@ function test()
       local input = testData.data[t]:double()
       local target = testData.labels[t]
       local pred = model:forward(input)
-      table.insert(results, {t, target, pred})
+      _, guess  = torch.max(pred,1)
+      table.insert(results, {t, target, guess[1]})
    end   
 end
-
 setup()
 test()
 csvigo.save{data = results, path='predictions.csv'}

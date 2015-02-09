@@ -48,8 +48,9 @@ function test()
 
       -- test sample
       local pred = model:forward(input)
+      _, guess  = torch.max(pred,1)
       -- print("\n" .. target .. "\n")
-      testSampleWrong[t]= testSampleWrong[t] + ((pred ~= target) and 1 or 0)--DG addition
+      testSampleWrong[t]= testSampleWrong[t] + ((guess[1] ~= target) and 1 or 0)--DG addition
       confusion:add(pred, target)
    end
 
