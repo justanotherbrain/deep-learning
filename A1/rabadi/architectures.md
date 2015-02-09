@@ -36,7 +36,9 @@ This network is based off of the idea of, why the heck are we only using 3 hidde
 Initialize the model:
 
 -- STAGE1 --
-1. Spatial convolution takes in 3 features
+1. Spatial convolution takes in 3 features and 64 states and spits out 64 features.
+2. that is passed on to tanh
+3. spatial lp pooling with p=2, 2x2 with 2x2
 
 
 
