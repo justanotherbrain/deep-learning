@@ -52,7 +52,7 @@ def read_args():
     interpret command line args
     """
     if len(sys.argv) is 1:
-        plot_session(data[10])
+        plot_session(data[0])
     elif len(sys.argv) is 2:
         try:
             if sys.argv[1] == "AVGS":
