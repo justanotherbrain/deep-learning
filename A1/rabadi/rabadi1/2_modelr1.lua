@@ -88,7 +88,6 @@ model:add(nn.Linear(nstates[4], noutputs))
 ----------------------------------------------------------------------
 print '==> here is the model:'
 print(model)
-
 ----------------------------------------------------------------------
 ---- Visualization is quite easy, using gfx.image().
 --
