@@ -27,10 +27,26 @@ opt = cmd:parse(arg or {})
 ----------------------------------------------------------------------
 print '==> download dataset'
 
--- Download the dataset files. This will conver the .mat file format 
+-- Download the dataset files. This will convert the .mat file format 
 -- the tensor format using mattorch.
 
+-- dir = '/scratch/courses/DSGA1008/A2/matlab'
+dir = '/home/rabad/data/stl10_matlab/'
 
+if not paths.filep(dir) then
+	os.execute('wget -qO- http://ai.stanford.edu/~acoates/stl10/stl10_matlab.tar.gz | tar xvz')
+	os.execute('cd stl10_matlab')
+	os.execute('mv * ..')
+	train_file = 'train.mat'
+	test_file = 'test.mat'
+	unlabeled_file = 'unlabeled.mat'
+else
+	train_file = dir .. 'train.mat'
+	test_file = dir .. 'test.mat'
+	unlabeled_file = dir .. 'unlabeled.mat'
+end
+
+loaded = mattorch.load(train_file)
 
 
 
