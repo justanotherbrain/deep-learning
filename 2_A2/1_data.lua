@@ -47,7 +47,7 @@ else
 end
 
 loaded = mattorch.load(train_file)
-t = loaded.X:transpose(loaded)
+t = loaded.X:transpose(1,2)
 train_size=t:size()
 trainData = {
 	data = torch.reshape(t,train_size[1],96,96,3),
@@ -57,7 +57,7 @@ trainData = {
 
 
 loaded = mattorch.load(test_file)
-t = loaded.X:transpose(loaded)
+t = loaded.X:transpose(1,2)
 test_size=t:size()
 testData = {
 	data = torch.reshape(t,test_size[1],96,96,3),
@@ -66,7 +66,7 @@ testData = {
 }
 
 loaded = mattorch.load(unlabeled_file)
-t = loaded.X:transpose(loaded)
+t = loaded.X:transpose(1,2)
 unlabeled_size = t:size()
 unlabeledData = {
 	data = torch.reshape(t,unlabeled_size[1],96,96,3),
