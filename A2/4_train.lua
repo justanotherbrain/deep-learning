@@ -26,6 +26,10 @@ if not opt then
    cmd:text('SVHN Training/Optimization')
    cmd:text()
    cmd:text('Options:')
+
+
+   cmd:option('-save', 'results', 'subdirectory to save/log experiments in')
+
    cmd:option('-visualize', false, 'visualize input data and weights during training')
    cmd:option('-plot', false, 'live plot')
    cmd:option('-optimization', 'SGD', 'optimization method: SGD | ASGD | CG | LBFGS')
@@ -57,6 +61,7 @@ confusion = optim.ConfusionMatrix(classes)
 
 -- Log results to files
 
+
 trainLogger = optim.Logger(paths.concat(opt.save, 'train.log'))
 testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
 paramLogger = optim.Logger(paths.concat(opt.save, 'params.log'))
@@ -64,7 +69,6 @@ paramLogger = optim.Logger(paths.concat(opt.save, 'params.log'))
 
 paramLogger:add{['maxIter'] = opt.maxIter, ['momentum'] = opt.momentum,
  ['weightDecay'] = opt.weightDecay, ['model'] = opt.model, ['optimization'] = opt.optimization, ['learningRate'] = opt.learningRate, ['loss'] = opt.loss, ['batchSize'] = opt.batchSize}
-
 
 -- Retrieve parameters and gradients:
 -- this extracts and flattens all the trainable parameters of the mode
@@ -122,16 +126,95 @@ for t = 1,testData:size() do
   table.insert(testSampleWrong,0)
 end
 function sampleComparer(a,b)
-  if a[2] == b[2] then
-    return a[1] < b[1]
+  if type(a[1]) == 'string' then
+      return true
   end
-  
+  if type(b[1]) == 'string' then
+      return false
+  end
+  if a[2] == b[2] then
+      return a[1] > b[1]
+  end
   return a[2] > b[2]
 end
 ----------------------------------------------------------------------
 
 ----------------------------------------------------------------------
 print '==> defining training procedure'
+
+function trainPoorPerforming()
+  
+    indicies = {}
+    local current = 2
+    while current < #trainWrite and (epoch - trainWrite[current][2]) / epoch <= opt.wrongThresh do
+        table.insert(indicies, trainWrite[current][1])
+        current = current + 1
+    end
+    print('==> retraining samples')
+    shuffle = torch.randperm(#indicies)
+    model:training()
+    for i = 1,#indicies,opt.batchSize do    
+      xlua.progress(i, #indicies)
+      -- create mini batch
+      local inputs = {}
+      local targets = {}
+      for t = i,math.min(i+opt.batchSize-1,#indicies) do
+         -- load new sample
+         local input = trainData.data[shuffle[t]]
+         local target = trainData.labels[shuffle[t]][1]
+         if opt.type == 'double' then input = input:double()
+         elseif opt.type == 'cuda' then input = input:cuda() end
+         table.insert(inputs, {input, shuffle[t]})--DG change, Inputs is now an array of tuples
+         table.insert(targets, target)
+      end
+
+      -- create closure to evaluate f(X) and df/dX
+      local feval = function(x)
+                       -- get new parameters
+                       if x ~= parameters then
+                          parameters:copy(x)
+                       end
+
+                       -- reset gradients
+                       gradParameters:zero()
+
+                       -- f is the average of all criterions
+                       local f = 0
+
+                       -- evaluate function for complete mini batch
+                       for i = 1,#inputs do
+                          -- estimate f
+
+                          local output = model:forward(inputs[i][1])
+                          local err = criterion:forward(output, targets[i])
+                          f = f + err
+
+                          -- estimate df/dW
+                          local df_do = criterion:backward(output, targets[i])
+                          model:backward(inputs[i][1], df_do)
+                          
+                          -- log if samples are wrong. DG addition
+                          _, guess  = torch.max(output,1)
+                          trainSampleWrong[inputs[i][2]] = trainSampleWrong[inputs[i][2]] + ((guess[1] ~= targets[i]) and 1 or 0)
+
+                       end
+
+                       -- normalize gradients and f(X)
+                       gradParameters:div(#inputs)
+                       f = f/#inputs
+
+                       -- return f and df/dX
+                       return f,gradParameters
+                    end
+
+      -- optimize on current mini-batch
+      if optimMethod == optim.asgd then
+         _,_ ,average = optimMethod(feval, parameters, optimState)
+      else
+         optimMethod(feval, parameters, optimState)
+      end
+    end
+end
 
 function train()
   
@@ -161,7 +244,7 @@ function train()
       for i = t,math.min(t+opt.batchSize-1,trainData:size()) do
          -- load new sample
          local input = trainData.data[shuffle[i]]
-         local target = trainData.labels[shuffle[i]]
+         local target = trainData.labels[shuffle[i]][1]
          if opt.type == 'double' then input = input:double()
          elseif opt.type == 'cuda' then input = input:cuda() end
          table.insert(inputs, {input, shuffle[i]})--DG change, Inputs is now an array of tuples
@@ -193,7 +276,8 @@ function train()
                           model:backward(inputs[i][1], df_do)
                           
                           -- log if samples are wrong. DG addition
-                          trainSampleWrong[inputs[i][2]] = trainSampleWrong[inputs[i][2]] + ((output ~= targets[i]) and 1 or 0)
+                          _, guess  = torch.max(output,1)
+                          trainSampleWrong[inputs[i][2]] = trainSampleWrong[inputs[i][2]] + ((guess[1] ~= targets[i]) and 1 or 0)
 
                           -- update confusion
                           confusion:add(output, targets[i])
@@ -223,6 +307,7 @@ function train()
    -- print confusion matrix
    print(confusion)
 
+
    -- update logger/plot ... along with accuracy scores for each digit
      trainLogger:add{['% mean class accuracy (train set)'] = confusion.totalValid * 100,
       ['1'] = confusion.valids[1],
@@ -236,7 +321,8 @@ function train()
       ['9'] = confusion.valids[9],
       ['0'] = confusion.valids[10]
     }
-   if opt.plot then
+
+    if opt.plot then
       trainLogger:style{['% mean class accuracy (train set)'] = '-'}
       trainLogger:plot()
    end
@@ -246,7 +332,20 @@ function train()
    os.execute('mkdir -p ' .. sys.dirname(filename))
    print('==> saving model to '..filename)
    torch.save(filename, model)
-
+   
+   trainWrite = {}
+   for key, value in pairs(trainSampleWrong) do
+      table.insert(trainWrite, {key,value})
+   end
+   table.insert(trainWrite, {'Epoch',#trainWrite+1})   
+   table.sort(trainWrite, sampleComparer)
+   trainWrite[1][2] = epoch - 1
+   csvigo.save{path=paths.concat(opt.save, 'train_wrongSamples.log'), data=trainWrite}
+  
+  if opt.retrain == 1 then
+    trainPoorPerforming()
+  end
+  
    -- next epoch
    confusion:zero()
    epoch = epoch + 1
