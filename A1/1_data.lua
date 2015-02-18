@@ -76,11 +76,11 @@ if opt.size == 'extra' then
    tesize = 26032
 elseif opt.size == 'full' then
    print '==> using regular, full training data'
-   trsize = 73257
+   trsize = 73257 + 5045
    tesize = 26032
 elseif opt.size == 'small' then
    print '==> using reduced training data, for fast experiments'
-   trsize = 10000
+   trsize = 10000 + 673 + 1138
    tesize = 2000
 end
 
@@ -124,6 +124,36 @@ if opt.size == 'extra' then
    }
 end
 
+if opt.augment == 'double8' then
+   print 'augmenting data'
+end
+counter = {0,0,0,0,0,0,0,0,0,0}
+endDist = 0
+if opt.size == 'small' and opt.augment == 'double8' then 
+   print 'aumentsing'
+   for i = 1,trainData:size() do
+      if trainData.labels[i] == 8 and i % 2 == 0 then
+         endDist = endDist + 1
+         trainData.labels[10000 + endDist] = trainData.labels[i]
+         trainData.data[10000 + endDist] = trainData.data[i]
+      end
+   end
+end
+
+if opt.size == 'full' and opt.augment == 'double8' then 
+   for i = 1,trainData:size() do
+      if trainData.labels[i] == 8 then
+         endDist = endDist + 1
+         trainData.labels[73257 + endDist] = trainData.labels[i]
+         trainData.data[73257 + endDist] = trainData.data[i]
+      end
+   end
+end
+
+for i = 1,trainData:size() do
+   counter[trainData.labels[i]] = counter[trainData.labels[i]] + 1
+end
+print(counter)
 -- Finally we load the test data.
 
 loaded = torch.load(test_file,'ascii')

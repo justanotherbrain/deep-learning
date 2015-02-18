@@ -51,6 +51,8 @@ cmd:option('-momentum', 0, 'momentum (SGD only)')
 cmd:option('-t0', 1, 'start averaging at t0 (ASGD only), in nb of epochs')
 cmd:option('-maxIter', 2, 'maximum nb of iterations for CG and LBFGS')
 cmd:option('-type', 'double', 'type: double | float | cuda')
+cmd:option('-augment', 'double8', 'type: a | v | d')
+
 cmd:text()
 opt = cmd:parse(arg or {})
 
@@ -69,7 +71,6 @@ torch.manualSeed(opt.seed)
 ----------------------------------------------------------------------
 print '==> executing all'
 
--- we do this to make sure that 'experiments exists and we can save our logs to it'
 
 dofile '1_data.lua'
 dofile '2_model.lua'

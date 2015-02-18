@@ -15,7 +15,8 @@
 
 require 'torch'   -- torch
 require 'image'   -- for image transforms
-require 'cunn'      -- provides all sorts of trainable modules/layers
+--require 'cunn'      -- provides all sorts of trainable modules/layers
+require 'nn'      -- provides all sorts of trainable modules/layers
 
 ----------------------------------------------------------------------
 -- parse command line arguments
@@ -40,8 +41,8 @@ noutputs = 10
 
 -- input dimensions
 nfeats = 3
-width = 32
-height = 32
+width = 96
+height = 96
 ninputs = nfeats*width*height
 
 -- number of hidden units (for MLP only):
