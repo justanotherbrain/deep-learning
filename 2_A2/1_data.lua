@@ -6,11 +6,11 @@
 --
 -- Michael Rabadi
 ---------------------------------------------------------------------
-
+require 'paths'
 require 'torch'
 require 'image'
 require 'nn'
-require 'mattorch'
+matio = require 'matio'
 
 print '==> preprocessing options'
 cmd = torch.CmdLine()
@@ -30,13 +30,11 @@ print '==> download dataset'
 -- Download the dataset files. This will convert the .mat file format 
 -- the tensor format using mattorch.
 
--- dir = '/scratch/courses/DSGA1008/A2/matlab'
-dir = '/home/rabad/data/stl10_matlab/'
-
-if not paths.filep(dir) then
+--dir = '/scratch/courses/DSGA1008/A2/matlab'
+dir = paths.cwd() .. '/'
+if not paths.dirp(dir) then
 	os.execute('wget -qO- http://ai.stanford.edu/~acoates/stl10/stl10_matlab.tar.gz | tar xvz')
-	os.execute('cd stl10_matlab')
-	os.execute('mv * ..')
+	os.execute('mv stl10_matlab/* .')
 	train_file = 'train.mat'
 	test_file = 'test.mat'
 	unlabeled_file = 'unlabeled.mat'
@@ -46,30 +44,30 @@ else
 	unlabeled_file = dir .. 'unlabeled.mat'
 end
 
-loaded = mattorch.load(train_file)
+loaded = matio.load(train_file)
 t = loaded.X:transpose(1,2)
 train_size=t:size()
 trainData = {
-	data = torch.reshape(t,train_size[1],96,96,3),
+	data = torch.reshape(t,train_size[2],96,96,3),
 	labels = loaded.y[1],
 	size = function() return train_size end
 }
 
 
-loaded = mattorch.load(test_file)
+loaded = matio.load(test_file)
 t = loaded.X:transpose(1,2)
 test_size=t:size()
 testData = {
-	data = torch.reshape(t,test_size[1],96,96,3),
+	data = torch.reshape(t,test_size[2],96,96,3),
 	labels = loaded.y[1],
 	size = function() return test_size end
 }
 
-loaded = mattorch.load(unlabeled_file)
+loaded = matio.load(unlabeled_file)
 t = loaded.X:transpose(1,2)
 unlabeled_size = t:size()
 unlabeledData = {
-	data = torch.reshape(t,unlabeled_size[1],96,96,3),
+	data = torch.reshape(t,unlabeled_size[2],96,96,3),
 	labels = loaded.y[1],
 	size = function() return unlabeled_size end
 }

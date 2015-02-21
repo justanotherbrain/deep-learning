@@ -6,3 +6,4 @@ train_32x32.t7
 .idea
 *.fuse*
 *.t7
+*.mat
