@@ -1,62 +1,40 @@
-----------------------------------------------------------------------
--- This script demonstrates how to define a couple of different
--- models:
---   + linear
---   + 2-layer neural network (MLP)
---   + convolutional network (ConvNet)
---
--- It's a good idea to run this script with the interactive mode:
--- $ torch -i 2_model.lua
--- this will give you a Torch interpreter at the end, that you
--- can use to play with the model.
---
--- Clement Farabet
-----------------------------------------------------------------------
-
 require 'torch'   -- torch
 require 'image'   -- for image transforms
 --require 'cunn'      -- provides all sorts of trainable modules/layers
 require 'nn'      -- provides all sorts of trainable modules/layers
 
-----------------------------------------------------------------------
--- parse command line arguments
-if not opt then
-   print '==> processing options'
-   cmd = torch.CmdLine()
-   cmd:text()
-   cmd:text('SVHN Model Definition')
-   cmd:text()
-   cmd:text('Options:')
-   cmd:option('-model', 'convnet', 'type of model to construct: linear | mlp | convnet')
-   cmd:option('-visualize', true, 'visualize input data and weights during training')
-   cmd:text()
-   opt = cmd:parse(arg or {})
-end
-
-----------------------------------------------------------------------
-print '==> define parameters'
-
--- 10-class problem
-noutputs = 10
+parameters = {
+  -- 10-class problem
+noutputs = 10,
 
 -- input dimensions
-nfeats = 3
-width = 96
-height = 96
-ninputs = nfeats*width*height
+nfeats = 3,
+width = 96,
+height = 96,
+
+-- hidden units, filter sizes (for ConvNet only):
+nstates = {64,64,128},
+filtsize = 5,
+poolsize = 2,
+normkernel = image.gaussian1D(7),
+layersToRemove = 0, addSoftMax = false
+}
+print '==> define parameters'
+print(parameters)
+
+function CreateModel(parameters, opt)
+ local noutputs = parameters.noutputs
+ local nfeats = parameters.nfeats
+ local width = parameters.width
+ local height = parameters.height
+ local nstates = parameters.nstates
+ local filtsize = parameters.filtsize
+ local poolsize = parameters.poolsize
+ local normkernel = parameters.normkernel
+  ninputs = nfeats*width*height
 
 -- number of hidden units (for MLP only):
 nhiddens = ninputs / 2
-
--- hidden units, filter sizes (for ConvNet only):
-nstates = {64,64,128}
-filtsize = 5
-poolsize = 2
-normkernel = image.gaussian1D(7)
-
-----------------------------------------------------------------------
-print '==> construct model'
-
 if opt.model == 'linear' then
 
    -- Simple linear model
@@ -74,7 +52,6 @@ elseif opt.model == 'mlp' then
    model:add(nn.Linear(nhiddens,noutputs))
 
 elseif opt.model == 'convnet' then
-
    if opt.type == 'cuda' then
       -- a typical modern convolution network (conv+relu+pool)
       model = nn.Sequential()
@@ -130,22 +107,9 @@ elseif opt.model == 'convnet' then
       model:add(nn.Linear(nstates[3], noutputs))
    end
 else
-
    error('unknown -model')
-
+end
+if opt.loss == 'nll' then model:add(nn.LogSoftMax()) end
+return model
 end
 
-----------------------------------------------------------------------
-print '==> here is the model:'
-print(model)
-
-----------------------------------------------------------------------
----- Visualization is quite easy, using gfx.image().
---
-if opt.visualize then
-  if opt.model == 'convnet' then
-     print '==> visualizing ConvNet filters'
-     gfx.image(model:get(1).weight, {zoom=2, legend='L1'})
-     gfx.image(model:get(5).weight, {zoom=2, legend='L2'})
-  end
-end

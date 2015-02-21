@@ -7,7 +7,6 @@ require 'xlua'
 --all models are of the same type, and differ by the parameters, or transformations to the data
 
 --Must have:
---opt.eps-small value for determining if algorithm has converged 
 --opt->enough information to create an initial state
 --parameters.models
 --parameters.outsize
@@ -284,7 +283,7 @@ function Test(model, X, y, opt, parameters, confusion, indicies)--add parameters
       
       local pred = model:forward(input)
       _, guess  = torch.max(pred,1)
-      if  confusion ~= nil then confusion:add(output, target) end
+      if  confusion ~= nil then confusion:add(pred, target) end
       ret.err = ret.err + ((guess[1] ~= target) and 1 or 0)
    end
    ret.err = ret.err / indicies:size(1)

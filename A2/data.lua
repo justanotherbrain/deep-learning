@@ -5,15 +5,20 @@ require 'nn'
 print '==> loading, reshaping, and transforming color of data'
 --mt = require 'fb.mattorch'
 --Load Data
---train = mt.load('stl10_matlab/trainX_y')
---test = mt.load('stl10_matlab/testX_y')
-local train = torch.load('train.t7')
-local test = torch.load('test.t7')
+local test
+local train
+if true then
+  train = torch.load('stl10_matlab/train.t7')
+  test = torch.load('stl10_matlab/test.t7')
+else
+  train = torch.load('train.t7')
+  test = torch.load('test.t7')
+end
 trsize = 5000
 tesize = 8000
 if not opt or opt.size == 'debug' then
-  trsize = 100
-  tesize = 10
+  trsize = 2
+  tesize = 2
 end
 traind = torch.reshape(train.X, torch.LongStorage{train.X:size(1), 3,96,96})[{{1,trsize},{},{},{}}]:float()
 trainy = train.y[{{1,trsize},{}}]
@@ -23,6 +28,7 @@ testy = test.y[{{1, tesize}, {}}]
 trainData = {
    data = traind,
    labels = trainy,
+   fold_indices = train.fold_indices,
    size = function() return trsize end
 }
 testData = {
@@ -128,6 +134,6 @@ for i,channel in ipairs(channels) do
    print('test data, '..channel..'-channel, mean: ' .. testMean)
    print('test data, '..channel..'-channel, standard deviation: ' .. testStd)
 end
---torch.save('test.torch', testData)
---torch.save('train.torch', trainData)
+torch.save('testData.t7', testData)
+torch.save('trainData.t7', trainData)
 
