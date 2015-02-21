@@ -7,48 +7,59 @@ print '==> loading, reshaping, and transforming color of data'
 --Load Data
 --train = mt.load('stl10_matlab/trainX_y')
 --test = mt.load('stl10_matlab/testX_y')
-local train = torch.load('stl10_matlab/train.t7')
-local test = torch.load('stl10_matlab/test.t7')
+local train = torch.load('train.t7')
+local test = torch.load('test.t7')
 trsize = 5000
 tesize = 8000
 if not opt or opt.size == 'debug' then
-  trsize = 5
-  tesize = 1
+  trsize = 100
+  tesize = 10
 end
-if opt and opt.angle then angle = opt.angle else angle = math.pi/18 end
+traind = torch.reshape(train.X, torch.LongStorage{train.X:size(1), 3,96,96})[{{1,trsize},{},{},{}}]:float()
+trainy = train.y[{{1,trsize},{}}]
 
-local traind = torch.reshape(train.X, torch.LongStorage{train.X:size(1), 3,96,96})[{{1,trsize},{},{},{}}]:float()
-local testd = torch.reshape(test.X, torch.LongStorage{test.X:size(1), 3,96,96})[{{1,tesize},{},{},{}}]:float()
---Reshape images
+testd = torch.reshape(test.X, torch.LongStorage{test.X:size(1), 3,96,96})[{{1,tesize},{},{},{}}]:float()
+testy = test.y[{{1, tesize}, {}}]
 trainData = {
-   data = torch.cat(torch.cat(traind,traind,1),torch.cat(traind,traind,1),1),
-   labels = torch.cat(torch.cat(train.y,train.y,1),torch.cat(train.y,train.y,1),1),
+   data = traind,
+   labels = trainy,
    size = function() return trsize end
 }
 testData = {
-   data = torch.cat(torch.cat(testd,testd,1),torch.cat(testd,testd,1),1),
-   labels = torch.cat(torch.cat(test.y,test.y,1),torch.cat(test.y,test.y,1),1),
+   data = testd,
+   labels = testy,
    size = function() return tesize end
 }
-trsize = trsize * 4
-tesize = tesize * 4
---Preprocess
 
---Rotate 10 degrees each way
-for i = 1,trainData:size()/4 do
-  trainData.data[i + trainData:size()/4] = image.rotate(trainData.data[i],angle)
-  trainData.data[i + 2 * trainData:size()/4] = image.rotate(trainData.data[i],-angle)
-  trainData.data[i + 3 * trainData:size()/4] = image.hflip(trainData.data[i])
-  
+print '===> Transform images'
+if opt and opt.angle then angle = opt.angle else angle = math.pi/18 end
+--Function for any general transformation to the data 
+function transform(func)
+    local traincp = traind:clone()
+    for i = 1,traincp:size(1) do 
+        traincp[i] = func.func(traincp[i], func.params)
+    end
+    trainData.data = torch.cat(trainData.data, traincp,1)
+    trainData.labels = torch.cat(trainData.labels,trainy,1)
+    trsize = trsize + traincp:size(1)
 end
-for i = 1,testData:size()/4 do
-   testData.data[i + testData:size()/4] = image.rotate(testData.data[i],angle)
-   testData.data[i + 2 * testData:size()/4] =image.rotate(testData.data[i],-angle)
-   testData.data[i + 3 * testData:size()/4] = image.hflip(testData.data[i])
-   
+--Transformation functions
+function rotate(slice, angle) 
+    return image.rotate(slice, angle)
 end
-  
---Convert colors
+function hflip(slice, n_a)
+    return image.hflip(slice)
+end
+--Rotate
+if angle then
+    transform({func=rotate, params=angle})
+    transform({func=rotate, params=-angle})
+end
+--Flip
+if not opt or opt.hflip == 1 then
+    transform({func=hflip})
+end
+--Preprocess
 for i = 1,trainData:size() do
    trainData.data[i] = image.rgb2yuv(trainData.data[i])
 end
