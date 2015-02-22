@@ -110,5 +110,6 @@ else
    error('unknown -model')
 end
 if opt.loss == 'nll' then model:add(nn.LogSoftMax()) end
+if opt.type == 'cuda' then model:cuda() end
 return model
 end

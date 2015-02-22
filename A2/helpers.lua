@@ -124,6 +124,7 @@ function OptimizerAndCriterion(opt)
      error('unknown optimization method')
   end
   if opt.loss == 'nll' then criterion = nn.ClassNLLCriterion() else error('nll only so far') end
+  if opt.type == 'cuda' then criterion:cuda()
   return {optimState=optimState, optimMethod=optimMethod, criterion=criterion}
 end
 
