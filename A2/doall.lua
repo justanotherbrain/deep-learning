@@ -84,7 +84,7 @@ else
   dofile 'data.lua'  
 end
 dofile 'model.lua'
-dofile 'trainTest.lua'
+dofile 'combined.lua'
 
 combined, results = TrainAndCompact(trainData.data, trainData.labels, CreateModel, parameters, opt)
 testCM = optim.ConfusionMatrix(parameters.noutputs)
