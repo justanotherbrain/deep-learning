@@ -88,7 +88,7 @@ dofile 'trainTest.lua'
 
 combined, results = TrainAndCompact(trainData.data, trainData.labels, CreateModel, parameters, opt)
 testCM = optim.ConfusionMatrix(parameters.noutputs)
-testResults = Test(combined, testData.data, testData.labels, opt, parameters, testCM)
+testResults = Test(combined, testData.data, testData.labels, opt, testCM)
 testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
 testLogger:add{['% mean class accuracy (test set)'] = testCM.totalValid * 100,
       ['1'] = testCM.valids[1],

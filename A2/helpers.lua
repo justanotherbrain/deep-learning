@@ -29,7 +29,7 @@ function CreateLogPackages(opt, parameters)
   ret = {}
   for i = 1,opt.models do
     ret[i] = {}
-    if opt.trainSetOnly ~= 1 then 
+    if opt.trainSetOnly == 0 and opt.models ~= 1 then 
       ret[i].testConfusion = optim.ConfusionMatrix(noutputs) 
       ret[i].testLogger = optim.Logger(paths.concat(opt.save, 'test' .. i .. '.log')) 
     end
@@ -124,7 +124,7 @@ function OptimizerAndCriterion(opt)
      error('unknown optimization method')
   end
   if opt.loss == 'nll' then criterion = nn.ClassNLLCriterion() else error('nll only so far') end
-  if opt.type == 'cuda' then criterion:cuda()
-  return {optimState=optimState, optimMethod=optimMethod, criterion=criterion}
+  if opt.type == 'cuda' then criterion:cuda() end
+  return {optimState=optimState, optimMethod=optimMethod, criterion=criterion} 
 end
 
