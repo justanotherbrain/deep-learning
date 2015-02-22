@@ -112,4 +112,3 @@ end
 if opt.loss == 'nll' then model:add(nn.LogSoftMax()) end
 return model
 end
-

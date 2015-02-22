@@ -2,17 +2,11 @@ require 'torch'
 require 'nn'
 require 'optim'
 require 'xlua'  
+dofile 'train_test.lua'
+dofile 'helpers.lua'
 --These functions assume:
 --all models use the same optimState 
 --all models are of the same type, and differ by the parameters, or transformations to the data
-
---Must have:
---opt->enough information to create an initial state
---parameters.models
---parameters.outsize
---parameters.layersToRemove
---parameters.addSoftMax
---parameters.1..n, for each model
   
 function CombineClassifiers(models, parameters)
   print '==>Combining classifiers'
@@ -40,43 +34,23 @@ function TrainAndCompact(X, y, modelGen, parameters, opt, folds)
   print( '==>Training ' .. #models .. ' models.')
   folds = CreateFolds(opt.models, X:size(1), folds)--Reshapes, not creates
   opt_crit = OptimizerAndCriterion(opt)
-  results = TrainModels(models, X, y, opt, opt_crit, parameters.noutputs, folds)
-  return CombineClassifiers(models, parameters), results
-end
-function RemoveLastLayers(model, n)
-  --This assumes we're using nn.Sequential as out base...fix it if you want
-  if n == 0 then return model end
-  ret = nn.Sequential()
-  for i = 1,model:size()-n do
-    ret:add(model:get(i):clone())
+  logpackages = CreateLogPackages(opt, parameters)
+  results = {}
+  epoch = 1
+  while results.converged ~= #models do
+    print ('==>Epoch ' .. epoch)
+    TrainModels(models, X, y, opt, opt_crit, logpackages, results, folds)
+    combined = CombineClassifiers(models, parameters)
+    logpackages.logmodel(paths.concat(opt.save, 'model-combined.net'), combined)
   end
-  return ret
+  return combined, results
 end
 
-function CreateFolds(numModels, numSamples, folds)
-  if folds == nil then
-    folds = torch.randperm(numSamples)
-  else
-    if folds:size():size() == 1 then
-      folds = torch.reshape(folds,folds:size()[1],1)
-    end
-    if folds:size(2) ~= 1 then
-      print '==>Folds already in matrix form. Returning folds, assuming this is an appropriate fold matrix'
-      return folds
-    end
-  end
-  local n = math.floor(numSamples/numModels)
-  folds = torch.reshape(folds[{{1,numModels * n}}], n, numModels)--To make this clean, ignore the last #samples % #models samples
-  print ('==>Creating '.. numModels..' folds each with '.. n ..' samples')
-  return folds
-end
-
-function TrainModels(models, X, y, opt, opt_crit, noutputs, folds)
+function TrainModels(models, X, y, opt, opt_crit, logpackages, results, folds)
   if #models ~= folds:size(2) then
     print 'Invalid number of folds/models'
     return
   end
-  results = {}
   if folds:size():size() == 1 then
     folds = folds:reshape(folds:size()[1],1)
   end
@@ -100,192 +74,41 @@ function TrainModels(models, X, y, opt, opt_crit, noutputs, folds)
       testInds = folds[{{},{foldIndex}}]
     end  
     print ('==>Training model '.. foldIndex .. ' of ' .. folds:size(2))
-    results[foldIndex] = TrainUntilConvergence(models[foldIndex], X, y, opt, opt_crit, noutputs, trainInds, testInds)
+    if results[foldIndex] == nil then results[foldIndex] = {} end
+    convergedThisIteration = TrainUntilConvergence(models[foldIndex], X, y, opt, opt_crit, logpackages[i], trainInds, testInds, results[foldIndex])
+    if convergedThisIteration then results.converged = results.converged + 1 end
   end  
-  return results
 end
-function TrainUntilConvergence(model, X, y, opt, opt_crit, noutputs, trainInds, testInds)
-  local percentError = 1
-  local bestPercentError = 1
-  local bestEpoch = 1
-  local epoch = 1
-  local epochsLeft = opt.maxEpoch
-  print (noutputs)
-  trainConfusion= optim.ConfusionMatrix(noutputs)
-  if testInds ~= nil then testConfusion = optim.ConfusionMatrix(noutputs) end
-  while epochsLeft ~= 0 and percentError > 1e-3 do --If we have awesome performance, end early
-      print ('===>Epoch ' .. epoch)
-      print '====>Training'
-      trainConfusion:zero()
-      trainingResult = Train(model, X, y, opt, opt_crit, trainConfusion, trainInds)
-      print ('====>Training error percentage: ' .. trainingResult.err)
-      if testInds ~= nil then 
-        testConfusion:zero()
-        print '====>Testing'
-        validationResult = Test(model, X, y, opt, testConfusion, testInds)
-        print ('====>Validation error percentage: ' .. validationResult.err)
-        percentError = validationResult.err 
-        
-      else 
-        print '====>No Test Data'
-        percentError = trainingResult.err
-      end
+function TrainUntilConvergence(model, X, y, opt, opt_crit, logpackage, trainInds, testInds, modelResults)
+  if next(modelResults) == nil then
+    modelResults = {
+      bestPercentError = 1,
+      epochsLeft = opt.maxEpoch
+    }
+  end
+  if modelResults.epochsLeft > 0 and bestPercentError > 1e-3 do --If we have awesome performance, end early
+    print '====>Training'
+    trainConfusion:zero()
+    trainingResult = Train(model, X, y, opt, opt_crit, logpackage.trainConfusion, trainInds)
+    print ('====>Training error percentage: ' .. trainingResult.err)
+    if testInds ~= nil then 
+      testConfusion:zero()
+      print '====>Testing'
+      validationResult = Test(model, X, y, opt, logpackage.testConfusion, testInds)
+      print ('====>Validation error percentage: ' .. validationResult.err)
+      percentError = validationResult.err 
       
-      if bestPercentError > percentError then--If percent error goes down, update
-        bestPercentError = percentError
-        bestModel = model:clone()
-        epochsLeft = opt.maxEpoch
-      else
-        epochsLeft = epochsLeft - 1
-      end      
-      
-      epoch = epoch + 1
-  end
-  if testInds ~= nil then
-    print '==>Final validation Confusion Matrix: '
-    print (testConfusion)
-  else
-    print '==>Final training Confusion Matrix: '
-    print (trainConfusion)
-  end
-  
-  return {bestModel=bestModel, bestPercentError=bestPercentError, testConfusion=testConfusion, trainConfusion=trainConfusion}
-end
-
-function OptimizerAndCriterion(opt)
-  --This only considers nll criterion as of now...so shoot me
-  if opt.optimization == 'CG' then
-   optimState = {
-      maxIter = opt.maxIter
-   }
-   optimMethod = optim.cg
-
-  elseif opt.optimization == 'LBFGS' then
-     optimState = {
-        learningRate = opt.learningRate,
-        maxIter = opt.maxIter,
-        nCorrection = 10
-     }
-     optimMethod = optim.lbfgs
-
-  elseif opt.optimization == 'SGD' then
-     optimState = {
-        learningRate = opt.learningRate,
-        weightDecay = opt.weightDecay,
-        momentum = opt.momentum,
-        learningRateDecay = 1e-7
-     }
-     optimMethod = optim.sgd
-
-  elseif opt.optimization == 'ASGD' then
-     optimState = {
-        eta0 = opt.learningRate,
-        t0 = trsize * opt.t0
-     }
-     optimMethod = optim.asgd
-
-  else
-     error('unknown optimization method')
-  end
-  if opt.loss == 'nll' then criterion = nn.ClassNLLCriterion() else error('nll only so far') end
-  return {optimState=optimState, optimMethod=optimMethod, criterion=criterion}
-end
-
-function Train(model, X, y, opt, opt_crit, confusion, indicies)
-  local optimMethod = opt_crit.optimMethod
-  local optimState = opt_crit.optimState
-  local criterion = opt_crit.criterion:clone()
-  ret = {err=0}
-  model:training()
-  if indicies:size():size() == 2 then indicies = indicies:reshape(indicies:size(1)) end
-  local parameters,gradParameters = model:getParameters()
-  for t = 1,indicies:size(1),opt.batchSize do
-    xlua.progress(t, indicies:size(1))
-    -- create mini batch
-    local inputs = {}
-    local targets = {}
-    for i = t,math.min(t+opt.batchSize-1,indicies:size(1)) do
-       -- load new sample
-       local input = X[indicies[i]]
-       local target = y[indicies[i]]
-       if opt.type == 'double' then input = input:double()
-       elseif opt.type == 'cuda' then input = input:cuda() end
-       table.insert(inputs, {input, indicies[i]})--DG change, Inputs is now an array of tuples
-       table.insert(targets, target)
+    else 
+      print '====>No Test Data'
+      percentError = trainingResult.err
     end
-
-    -- create closure to evaluate f(X) and df/dX
-    local feval = function(x)
-                     -- get new parameters
-                     if x ~= parameters then
-                        parameters:copy(x)
-                     end
-
-                     -- reset gradients
-                     gradParameters:zero()
-
-                     -- f is the average of all criterions
-                     local f = 0
-
-                     -- evaluate function for complete mini batch
-                     for i = 1,#inputs do
-                        -- estimate f
-                        local output = model:forward(inputs[i][1])
-                        local err = criterion:forward(output, targets[i][1])
-                        f = f + err
-
-                        -- estimate df/dW
-                        local df_do = criterion:backward(output, targets[i][1])
-                        model:backward(inputs[i][1], df_do)
-                        
-                        -- log if samples are wrong. DG addition
-                        local _, guess  = torch.max(output,1)
-                        if confusion ~= nil then confusion:add(output, targets[i][1]) end
-                        ret.err = ret.err + ((guess[1] ~= targets[i][1]) and 1 or 0)
-                     end
-
-                     -- normalize gradients and f(X)
-                     gradParameters:div(#inputs)
-                     f = f/#inputs
-
-                     -- return f and df/dX
-                     return f,gradParameters
-                  end
-
-    -- optimize on current mini-batch
-    if optimMethod == optim.asgd then
-       _,_ ,average = optimMethod(feval, parameters, optimState)
-    else
-       optimMethod(feval, parameters, optimState)
-    end   
- end
- ret.err = ret.err/indicies:size(1)
- return ret
-end
-function Test(model, X, y, opt, parameters, confusion, indicies)--add parameters
-  model:evaluate()
-  ret = {err=0}
-  if indicies == nil then 
-    indicies = torch.range(1,X:size(1))
-  elseif indicies:size():size() == 2 then
-    indicies = indicies:reshape(indicies:size(1))
-  end
-  for t = 1,indicies:size(1) do
-      -- get new sample
-      local input = X[indicies[t]]
-      if opt.type == 'double' then input = input:double()
-      elseif opt.type == 'cuda' then input = input:cuda() end
-      if y:size():size() == 2 then
-        target = y[indicies[t]][1]
-      else
-        target = y[indicies[t]]
-      end
-      
-      local pred = model:forward(input)
-      _, guess  = torch.max(pred,1)
-      if  confusion ~= nil then confusion:add(pred, target) end
-      ret.err = ret.err + ((guess[1] ~= target) and 1 or 0)
-   end
-   ret.err = ret.err / indicies:size(1)
-  return ret
+    
+    if modelResults.bestPercentError > percentError then--If percent error goes down, update
+      modelResults.bestPercentError = percentError
+      modelResults.epochsLeft = opt.maxEpoch + 1
+    end      
+    logpackage.log()
+  end  
+  modelResults.epochsLeft = modelResults.epochsLeft -1
+  return modelResults.epochsLeft == 0
 end
