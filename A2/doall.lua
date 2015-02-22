@@ -85,8 +85,8 @@ else
 end
 dofile 'model.lua'
 dofile 'combine.lua'
-
-combined, results = TrainAndCompact(trainData.data, trainData.labels, CreateModel, parameters, opt)
+if opt.size ~= 'debug' then folds = trainData.fold_indices end
+combined, results = TrainAndCompact(trainData.data, trainData.labels, CreateModel, parameters, opt, folds)
 testCM = optim.ConfusionMatrix(parameters.noutputs)
 testResults = Test(combined, testData.data, testData.labels, opt, testCM)
 testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))

@@ -134,6 +134,6 @@ for i,channel in ipairs(channels) do
    print('test data, '..channel..'-channel, mean: ' .. testMean)
    print('test data, '..channel..'-channel, standard deviation: ' .. testStd)
 end
-torch.save('testData.t7', testData)
-torch.save('trainData.t7', trainData)
+--torch.save('testData.t7', testData)
+--torch.save('trainData.t7', trainData)
 
