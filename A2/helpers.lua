@@ -27,55 +27,66 @@ end
 function CreateLogPackages(opt, parameters)
   local noutputs = parameters.noutputs
   ret = {}
-  for i = 1,opt.numModels do
+  for i = 1,opt.models do
     ret[i] = {}
-    ret[i].trainConfusion = optim.ConfusionMatrix(noutputs)
-    ret[i].testConfusion = optim.ConfusionMatrix(noutputs)
-    ret[i].trainLogger = optim.Logger(paths.concat(opt.save, 'train' .. i .. '.log'))
-    ret[i].testLogger = optim.Logger(paths.concat(opt.save, 'test' .. i .. '.log'))
-  end
-  ret.filename = paths.concat(opt.save, 'model.net')
-  ret.logmodel = function(filename, model) 
-   os.execute('mkdir -p ' .. sys.dirname(filename))
-   print('==> saving model to '..filename)
-   torch.save(filename, model)
-  end
-  ret.log = function(self)
-    for i = 1,#self do
-      
-      self[i].testLogger:add{['% mean class accuracy (train set)'] = .self[i].traintrainConfusion.totalValid * 100,
-          ['1'] = self[i].trainConfusion.valids[1],
-          ['2'] = self[i].trainConfusion.valids[2],
-          ['3'] = self[i].trainConfusion.valids[3],
-          ['4'] = self[i].trainConfusion.valids[4],
-          ['5'] = self[i].trainConfusion.valids[5],
-          ['6'] = self[i].trainConfusion.valids[6],
-          ['7'] = self[i].trainConfusion.valids[7],
-          ['8'] = self[i].trainConfusion.valids[8],
-          ['9'] = self[i].trainConfusion.valids[9],
-          ['0'] = self[i].trainConfusion.valids[10]
-        }
-      self[i].trainLogger:add{['% mean class accuracy (train set)'] = .self[i].traintestConfusion.totalValid * 100,
-        ['1'] = self[i].testConfusion.valids[1],
-        ['2'] = self[i].testConfusion.valids[2],
-        ['3'] = self[i].testConfusion.valids[3],
-        ['4'] = self[i].testConfusion.valids[4],
-        ['5'] = self[i].testConfusion.valids[5],
-        ['6'] = self[i].testConfusion.valids[6],
-        ['7'] = self[i].testConfusion.valids[7],
-        ['8'] = self[i].testConfusion.valids[8],
-        ['9'] = self[i].testConfusion.valids[9],
-        ['0'] = self[i].testConfusion.valids[10]
-      }
+    if opt.trainSetOnly ~= 1 then 
+      ret[i].testConfusion = optim.ConfusionMatrix(noutputs) 
+      ret[i].testLogger = optim.Logger(paths.concat(opt.save, 'test' .. i .. '.log')) 
     end
+    ret[i].trainConfusion = optim.ConfusionMatrix(noutputs)
+    ret[i].trainLogger = optim.Logger(paths.concat(opt.save, 'train' .. i .. '.log'))
+    ret[i].log = 
+    function(self)
+      if self.testLogger ~= nil then
+        print '===>Test Confusion'
+        print (self.testConfusion)
+        
+        self.testLogger:add{['% mean class accuracy (train set)'] = self.testConfusion.totalValid * 100,
+            ['1'] = self.trainConfusion.valids[1],
+            ['2'] = self.trainConfusion.valids[2],
+            ['3'] = self.trainConfusion.valids[3],
+            ['4'] = self.trainConfusion.valids[4],
+            ['5'] = self.trainConfusion.valids[5],
+            ['6'] = self.trainConfusion.valids[6],
+            ['7'] = self.trainConfusion.valids[7],
+            ['8'] = self.trainConfusion.valids[8],
+            ['9'] = self.trainConfusion.valids[9],
+            ['0'] = self.trainConfusion.valids[10]
+          }
+      end
+      print '===>Train Confusion'
+      print (self.trainConfusion)
+
+      self.trainLogger:add{['% mean class accuracy (train set)'] = self.trainConfusion.totalValid * 100,
+          ['1'] = self.trainConfusion.valids[1],
+          ['2'] = self.trainConfusion.valids[2],
+          ['3'] = self.trainConfusion.valids[3],
+          ['4'] = self.trainConfusion.valids[4],
+          ['5'] = self.trainConfusion.valids[5],
+          ['6'] = self.trainConfusion.valids[6],
+          ['7'] = self.trainConfusion.valids[7],
+          ['8'] = self.trainConfusion.valids[8],
+          ['9'] = self.trainConfusion.valids[9],
+          ['0'] = self.trainConfusion.valids[10]
+        }
+    end
+  end
+  ret.logmodel = 
+  function(filename, model) 
+     os.execute('mkdir -p ' .. sys.dirname(filename))
+     print('==> saving model to '..filename)
+     torch.save(filename, model)
   end
   return ret
 end
 
-function LogParameters(parameters)
-  
-end
+function LogParameters(opt, parameters)
+  paramLogger = optim.Logger(paths.concat(opt.save, 'params.log'))
 
+
+  paramLogger:add{['maxIter'] = opt.maxIter, ['momentum'] = opt.momentum,
+   ['weightDecay'] = opt.weightDecay, ['model'] = opt.model, ['optimization'] = opt.optimization, ['learningRate'] = opt.learningRate, ['loss'] = opt.loss, ['batchSize'] = opt.batchSize}
+end
 
 function OptimizerAndCriterion(opt)
   --This only considers nll criterion as of now...so shoot me

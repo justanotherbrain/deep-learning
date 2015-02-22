@@ -69,7 +69,7 @@ function Train(model, X, y, opt, opt_crit, confusion, indicies)
  ret.err = ret.err/indicies:size(1)
  return ret
 end
-function Test(model, X, y, opt, parameters, confusion, indicies)--add parameters
+function Test(model, X, y, opt, confusion, indicies)--add parameters
   model:evaluate()
   ret = {err=0}
   if indicies == nil then 

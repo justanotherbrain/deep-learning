@@ -21,8 +21,6 @@ function CombineClassifiers(models, parameters)
     seq:add(nn.SoftMax())
   end
   seq:add(nn.Sum(1))
-  print '==>Resultant classifier'
-  print(seq)
   return seq
 end
 function TrainAndCompact(X, y, modelGen, parameters, opt, folds)
@@ -35,14 +33,17 @@ function TrainAndCompact(X, y, modelGen, parameters, opt, folds)
   folds = CreateFolds(opt.models, X:size(1), folds)--Reshapes, not creates
   opt_crit = OptimizerAndCriterion(opt)
   logpackages = CreateLogPackages(opt, parameters)
-  results = {}
+  results = {converged = 0}
   epoch = 1
   while results.converged ~= #models do
     print ('==>Epoch ' .. epoch)
     TrainModels(models, X, y, opt, opt_crit, logpackages, results, folds)
     combined = CombineClassifiers(models, parameters)
     logpackages.logmodel(paths.concat(opt.save, 'model-combined.net'), combined)
+    epoch = epoch + 1
   end
+  print '==>Resultant classifier'
+  print(combined)
   return combined, results
 end
 
@@ -75,24 +76,21 @@ function TrainModels(models, X, y, opt, opt_crit, logpackages, results, folds)
     end  
     print ('==>Training model '.. foldIndex .. ' of ' .. folds:size(2))
     if results[foldIndex] == nil then results[foldIndex] = {} end
-    convergedThisIteration = TrainUntilConvergence(models[foldIndex], X, y, opt, opt_crit, logpackages[i], trainInds, testInds, results[foldIndex])
+    convergedThisIteration = TrainUntilConvergence(models[foldIndex], X, y, opt, opt_crit, logpackages[foldIndex], trainInds, testInds, results[foldIndex])
     if convergedThisIteration then results.converged = results.converged + 1 end
   end  
 end
 function TrainUntilConvergence(model, X, y, opt, opt_crit, logpackage, trainInds, testInds, modelResults)
   if next(modelResults) == nil then
-    modelResults = {
-      bestPercentError = 1,
-      epochsLeft = opt.maxEpoch
-    }
+    modelResults.bestPercentError = 1
+    modelResults.epochsLeft = opt.maxEpoch
   end
-  if modelResults.epochsLeft > 0 and bestPercentError > 1e-3 do --If we have awesome performance, end early
-    print '====>Training'
-    trainConfusion:zero()
+  if modelResults.epochsLeft > 0 then --If we have awesome performance, end early
+    logpackage.trainConfusion:zero()
     trainingResult = Train(model, X, y, opt, opt_crit, logpackage.trainConfusion, trainInds)
     print ('====>Training error percentage: ' .. trainingResult.err)
     if testInds ~= nil then 
-      testConfusion:zero()
+      logpackage.testConfusion:zero()
       print '====>Testing'
       validationResult = Test(model, X, y, opt, logpackage.testConfusion, testInds)
       print ('====>Validation error percentage: ' .. validationResult.err)
@@ -102,13 +100,17 @@ function TrainUntilConvergence(model, X, y, opt, opt_crit, logpackage, trainInds
       print '====>No Test Data'
       percentError = trainingResult.err
     end
-    
     if modelResults.bestPercentError > percentError then--If percent error goes down, update
       modelResults.bestPercentError = percentError
       modelResults.epochsLeft = opt.maxEpoch + 1
     end      
-    logpackage.log()
+    logpackage:log()
+    modelResults.epochsLeft = modelResults.epochsLeft -1
+    --Convergence conditions
+    if modelResults.epochsLeft == 0 or modelResults.bestPercentError < 1e-3 then
+      modelResults.epochsLeft = 0
+      return true 
+    end
   end  
-  modelResults.epochsLeft = modelResults.epochsLeft -1
-  return modelResults.epochsLeft == 0
+  return false
 end
