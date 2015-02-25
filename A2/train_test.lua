@@ -1,4 +1,4 @@
-function Train(model, X, y, opt, opt_crit, confusion, indicies)
+function Train(model, trainData, opt, opt_crit, confusion, indicies)
   local optimMethod = opt_crit.optimMethod
   local optimState = opt_crit.optimState
   local criterion = opt_crit.criterion:clone()
@@ -13,8 +13,8 @@ function Train(model, X, y, opt, opt_crit, confusion, indicies)
     local targets = {}
     for i = t,math.min(t+opt.batchSize-1,indicies:size(1)) do
        -- load new sample
-       local input = X[indicies[i]]
-       local target = y[indicies[i]]
+       local input = trainData.X[indicies[i]]
+       local target = trainData.y[indicies[i]]
        if opt.type == 'double' then input = input:double()
        elseif opt.type == 'cuda' then input = input:cuda() end
        table.insert(inputs, {input, indicies[i]})--DG change, Inputs is now an array of tuples
@@ -69,23 +69,23 @@ function Train(model, X, y, opt, opt_crit, confusion, indicies)
  ret.err = ret.err/indicies:size(1)
  return ret
 end
-function Test(model, X, y, opt, confusion, indicies)--add parameters
+function Test(model, testData, opt, confusion, indicies)--add parameters
   model:evaluate()
   ret = {err=0}
   if indicies == nil then 
-    indicies = torch.range(1,X:size(1))
+    indicies = torch.range(1,testData.size)
   elseif indicies:size():size() == 2 then
     indicies = indicies:reshape(indicies:size(1))
   end
   for t = 1,indicies:size(1) do
       -- get new sample
-      local input = X[indicies[t]]
+      local input = testData.X[indicies[t]]
       if opt.type == 'double' then input = input:double()
       elseif opt.type == 'cuda' then input = input:cuda() end
-      if y:size():size() == 2 then
-        target = y[indicies[t]][1]
+      if testData.y:size():size() == 2 then
+        target = testData.y[indicies[t]][1]
       else
-        target = y[indicies[t]]
+        target = testData.y[indicies[t]]
       end
       
       local pred = model:forward(input)

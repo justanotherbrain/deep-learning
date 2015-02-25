@@ -8,6 +8,25 @@ dofile 'helpers.lua'
 --all models use the same optimState 
 --all models are of the same type, and differ by the parameters, or transformations to the data
   
+--TODO:
+--Move X,y for functions into trainData struct again
+--Re-implement trainData:size()
+--In model, add ModifyModel (and ModifyCombinedModel?), make them both generic, appending simply to a generic model?
+--Allow TrainAndCompact too pass in models as parameters
+--Add global option for maximum number of epochs to use ever
+--Move model, test_train, and OptimAndCriterion to one file
+--have CreateModel() output {model=model, criterion=criterion}
+--add LoadOptions(file)
+
+--Semi-supervised pseudocode:
+  --combined = TrainAndCompact(data)
+  --Switch out old model and old test/train (and old criterion?)
+  --LoadOptions()
+  --ModifyCombinedModel(combined)
+  --TrainAndCompact(data, combined)
+  --Finally test on data
+  
+
 function CombineClassifiers(models, parameters)
   print '==>Combining classifiers'
   seq = nn.Sequential()
@@ -23,21 +42,21 @@ function CombineClassifiers(models, parameters)
   seq:add(nn.Sum(1))
   return seq
 end
-function TrainAndCompact(X, y, modelGen, parameters, opt, folds)
+function TrainAndCompact(trainData, modelGen, parameters, opt, folds)
   models = {}
   for i=1,opt.models do
     if #parameters == 0 then models[i] = modelGen(parameters, opt) 
     else models[i] = modelGen(parameters[i], opt) end
   end
   print( '==>Training ' .. #models .. ' models.')
-  folds = CreateFolds(opt.models, X:size(1), folds)--Reshapes, not creates
+  folds = CreateFolds(opt.models, trainData.size, folds)--Reshapes, not creates
   opt_crit = OptimizerAndCriterion(opt)
   logpackages = CreateLogPackages(opt, parameters)
   results = {converged = 0}
   epoch = 1
   while results.converged ~= #models do
     print ('==>Epoch ' .. epoch)
-    TrainModels(models, X, y, opt, opt_crit, logpackages, results, folds)
+    TrainModels(models, trainData, opt, opt_crit, logpackages, results, folds)
     combined = CombineClassifiers(models, parameters)
     logpackages.logmodel(paths.concat(opt.save, 'model-combined.net'), combined)
     epoch = epoch + 1
@@ -47,7 +66,7 @@ function TrainAndCompact(X, y, modelGen, parameters, opt, folds)
   return combined, results
 end
 
-function TrainModels(models, X, y, opt, opt_crit, logpackages, results, folds)
+function TrainModels(models, trainData, opt, opt_crit, logpackages, results, folds)
   if #models ~= folds:size(2) then
     print 'Invalid number of folds/models'
     return
@@ -76,23 +95,23 @@ function TrainModels(models, X, y, opt, opt_crit, logpackages, results, folds)
     end  
     print ('==>Training model '.. foldIndex .. ' of ' .. folds:size(2))
     if results[foldIndex] == nil then results[foldIndex] = {} end
-    convergedThisIteration = TrainUntilConvergence(models[foldIndex], X, y, opt, opt_crit, logpackages[foldIndex], trainInds, testInds, results[foldIndex])
+    convergedThisIteration = TrainUntilConvergence(models[foldIndex], trainData, opt, opt_crit, logpackages[foldIndex], trainInds, testInds, results[foldIndex])
     if convergedThisIteration then results.converged = results.converged + 1 end
   end  
 end
-function TrainUntilConvergence(model, X, y, opt, opt_crit, logpackage, trainInds, testInds, modelResults)
+function TrainUntilConvergence(model, trainData, opt, opt_crit, logpackage, trainInds, testInds, modelResults)
   if next(modelResults) == nil then
     modelResults.bestPercentError = 1
     modelResults.epochsLeft = opt.maxEpoch
   end
   if modelResults.epochsLeft > 0 then --If we have awesome performance, end early
     logpackage.trainConfusion:zero()
-    trainingResult = Train(model, X, y, opt, opt_crit, logpackage.trainConfusion, trainInds)
+    trainingResult = Train(model, trainData, opt, opt_crit, logpackage.trainConfusion, trainInds)
     print ('====>Training error percentage: ' .. trainingResult.err)
     if testInds ~= nil then 
       logpackage.testConfusion:zero()
       print '====>Testing'
-      validationResult = Test(model, X, y, opt, logpackage.testConfusion, testInds)
+      validationResult = Test(model, trainData, opt, logpackage.testConfusion, testInds)
       print ('====>Validation error percentage: ' .. validationResult.err)
       percentError = validationResult.err 
       
