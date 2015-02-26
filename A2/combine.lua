@@ -9,13 +9,12 @@ dofile 'helpers.lua'
 --all models are of the same type, and differ by the parameters, or transformations to the data
   
 --TODO:
---Move X,y for functions into trainData struct again
---Re-implement trainData:size()
+--Move X,y for functions into trainData struct again-done
+--Re-implement trainData:size()-done
 --In model, add ModifyModel (and ModifyCombinedModel?), make them both generic, appending simply to a generic model?
---Allow TrainAndCompact too pass in models as parameters
 --Add global option for maximum number of epochs to use ever
 --Move model, test_train, and OptimAndCriterion to one file
---have CreateModel() output {model=model, criterion=criterion}
+--have CreateModel() output {model=model, criterion=criterion}-done and more
 --add LoadOptions(file)
 
 --Semi-supervised pseudocode:
@@ -26,110 +25,125 @@ dofile 'helpers.lua'
   --TrainAndCompact(data, combined)
   --Finally test on data
   
-
-function CombineClassifiers(models, parameters)
-  print '==>Combining classifiers'
-  seq = nn.Sequential()
-  conc = nn.Concat(1)--Assume this is the final layer of a classifier, without a SoftMax layer
-  for i = 1,#models do
-        conc:add(RemoveLastLayers(models[i], parameters.layersToRemove))
-  end
-  seq:add(conc)
-  seq:add(nn.Reshape(#models, parameters.noutputs))
-  if parameters.addSoftMax then 
-    seq:add(nn.SoftMax())
-  end
-  seq:add(nn.Sum(1))
-  return seq
-end
-function TrainAndCompact(trainData, modelGen, parameters, opt, folds)
-  models = {}
-  for i=1,opt.models do
-    if #parameters == 0 then models[i] = modelGen(parameters, opt) 
-    else models[i] = modelGen(parameters[i], opt) end
-  end
-  print( '==>Training ' .. #models .. ' models.')
-  folds = CreateFolds(opt.models, trainData.size, folds)--Reshapes, not creates
-  opt_crit = OptimizerAndCriterion(opt)
-  logpackages = CreateLogPackages(opt, parameters)
-  results = {converged = 0}
-  epoch = 1
-  while results.converged ~= #models do
-    print ('==>Epoch ' .. epoch)
-    TrainModels(models, trainData, opt, opt_crit, logpackages, results, folds)
-    combined = CombineClassifiers(models, parameters)
-    logpackages.logmodel(paths.concat(opt.save, 'model-combined.net'), combined)
-    epoch = epoch + 1
-  end
-  print '==>Resultant classifier'
-  print(combined)
-  return combined, results
+function CreateModels(opt, parameters, modelGen, model_optim_critList)
+  --Setup
+    parameterList = {}
+    if #parameters == 0 then
+      for i =1,opt.models do
+        table.insert(parameterList, parameters)
+      end    
+    else
+      parameterList = parameters
+    end
+    --Creating models
+    if model_optim_critList == nil then
+      model_optim_critList = {}
+      for i = 1,opt.models do
+        table.insert(model_optim_critList, modelGen(parameterList[i], opt))
+      end
+    else
+      for i = 1,opt.models do
+        table.insert(model_optim_critList, modelGen(parameterList[i], opt, model_optim_critList[i]))
+      end
+    end
+    return model_optim_critList
 end
 
-function TrainModels(models, trainData, opt, opt_crit, logpackages, results, folds)
-  if #models ~= folds:size(2) then
-    print 'Invalid number of folds/models'
+function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logpackages)
+  --Setup and invalid data checking
+  local Train = trainFun
+  if folds ~= nil and #folds ~= #model_optim_critList then
+    print 'WRONG NUMBER OF FOLDS'
+    return
+  elseif opt.models ~= #model_optim_critList then
+    print 'WRONG NUMBER OF MODELS'
     return
   end
-  if folds:size():size() == 1 then
-    folds = folds:reshape(folds:size()[1],1)
+  --Create folds if necessary
+  if folds == nil then 
+    folds = CreateFolds(#model_optim_critList, trainData.size) 
   end
-  --Train individual models
-  for foldIndex = 1,folds:size(2) do
-    if folds:size(2) == 1 then
-      trainInds = folds
-      testInds = nil
-    elseif opt.trainSetOnly == 1 then
-      trainInds = folds[{{},foldIndex}]
-      testInds = nil
-    else 
-      local numTraining = folds:size(1) * (folds:size(2) - 1)
-      if foldIndex == 1 then 
-        trainInds = torch.reshape(folds[{{},{2,-1}}], numTraining, 1)
-      elseif foldIndex == folds:size(2) then
-        trainInds = torch.reshape(folds[{{},{1,-2}}], numTraining,1)
-      else
-        trainInds = torch.reshape(torch.cat(folds[{{},{1,foldIndex-1}}],folds[{{},{foldIndex+1,-1}}]), numTraining,1)
+  --Setup internals
+  local modelResults = {}
+  for i=1,#model_optim_critList do 
+    table.insert(modelResults, {bestPercentError=1,epochsLeft=opt.maxEpoch, finished= false}) 
+  end
+  local trainLoop = 
+    function(foldIndex) 
+      print('==>Training')
+      if logpackages ~= nil then logpackage = logpackages[foldIndex] end
+      --Get inidices
+      if opt.trainSetOnly == 1 or opt.models == 1 then
+        trainInds = folds[{{},foldIndex}]
+        testInds = nil
+      else--for normal, training on multiple subsets
+        local numTraining = folds:size(1) * (folds:size(2) - 1)
+        if foldIndex == 1 then 
+          trainInds = torch.reshape(folds[{{},{2,-1}}], numTraining, 1)
+        elseif foldIndex == folds:size(2) then
+          trainInds = torch.reshape(folds[{{},{1,-2}}], numTraining,1)
+        else
+          trainInds = torch.reshape(torch.cat(folds[{{},{1,foldIndex-1}}],folds[{{},{foldIndex+1,-1}}]), numTraining,1)
+        end
+        testInds = folds[{{},{foldIndex}}]
       end
-      testInds = folds[{{},{foldIndex}}]
-    end  
-    print ('==>Training model '.. foldIndex .. ' of ' .. folds:size(2))
-    if results[foldIndex] == nil then results[foldIndex] = {} end
-    convergedThisIteration = TrainUntilConvergence(models[foldIndex], trainData, opt, opt_crit, logpackages[foldIndex], trainInds, testInds, results[foldIndex])
-    if convergedThisIteration then results.converged = results.converged + 1 end
-  end  
-end
-function TrainUntilConvergence(model, trainData, opt, opt_crit, logpackage, trainInds, testInds, modelResults)
-  if next(modelResults) == nil then
-    modelResults.bestPercentError = 1
-    modelResults.epochsLeft = opt.maxEpoch
-  end
-  if modelResults.epochsLeft > 0 then --If we have awesome performance, end early
-    logpackage.trainConfusion:zero()
-    trainingResult = Train(model, trainData, opt, opt_crit, logpackage.trainConfusion, trainInds)
-    print ('====>Training error percentage: ' .. trainingResult.err)
-    if testInds ~= nil then 
-      logpackage.testConfusion:zero()
-      print '====>Testing'
-      validationResult = Test(model, trainData, opt, logpackage.testConfusion, testInds)
-      print ('====>Validation error percentage: ' .. validationResult.err)
-      percentError = validationResult.err 
+      --Train logic
+      if not modelResults[foldIndex].finished then 
+        --Train model
+        logpackage.trainConfusion:zero()
+        local trainingResult = Train(model_optim_critList[foldIndex], trainData, opt, logpackage.trainConfusion, trainInds)
+        print ('====>Training error percentage: ' .. trainingResult.err)
+        --Test on validation
+        if testInds ~= nil then 
+          logpackage.testConfusion:zero()
+          print '====>Testing'
+          validationResult = Test(model_optim_critList[foldIndex], trainData, opt, logpackage.testConfusion, testInds)
+          print ('====>Validation error percentage: ' .. validationResult.err)
+          percentError = validationResult.err 
+        else 
+          --If we don't have a validation set
+          print '====>No Test Data'
+          percentError = trainingResult.err
+        end
+        
+        --Update
+        if modelResults[foldIndex].bestPercentError > percentError then--If percent error goes down, update
+          modelResults[foldIndex].bestPercentError = percentError
+          modelResults[foldIndex].epochsLeft = opt.maxEpoch + 1
+        end      
+        modelResults[foldIndex].epochsLeft = modelResults[foldIndex].epochsLeft -1
+        logpackage:log()--Log iteration
+        
+        --Convergence conditions
+        if modelResults[foldIndex].epochsLeft == 0 or modelResults[foldIndex].bestPercentError < 1e-3 then
+          modelResults[foldIndex].finished = true
+          return 1 --Return 1 when the model finishes
+        end
+      end  
+      return 0
+    end
+  local epoch = 1
+  local foldIndex = 0
+  local numberConverged = 0
+  --Loop until all models converge
+  while numberConverged ~= #model_optim_critList do
+    foldIndex = (foldIndex % #model_optim_critList) + 1
+    numberConverged = numberConverged + trainLoop(foldIndex)
+    epoch = epoch + 1
+    --Save a combined model every epoch
+    if foldIndex == #model_optim_critList then 
+      if opt.models == 1 then 
+        conc = nn.Concat(1)
+        for i = 1,opt.models do
+          conc:add(model_optim_critList[i].model)
+          LogModel(opt.save .. '-combined_model.net', conc)
+        end
+      else
+        conc = model_optim_critList[1].model
+      end
       
-    else 
-      print '====>No Test Data'
-      percentError = trainingResult.err
     end
-    if modelResults.bestPercentError > percentError then--If percent error goes down, update
-      modelResults.bestPercentError = percentError
-      modelResults.epochsLeft = opt.maxEpoch + 1
-    end      
-    logpackage:log()
-    modelResults.epochsLeft = modelResults.epochsLeft -1
-    --Convergence conditions
-    if modelResults.epochsLeft == 0 or modelResults.bestPercentError < 1e-3 then
-      modelResults.epochsLeft = 0
-      return true 
-    end
-  end  
-  return false
+  end
+  print ('Completed training, took ' .. epoch .. ' epochs.')
+  return conc
 end
