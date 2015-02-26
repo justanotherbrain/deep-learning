@@ -19,8 +19,7 @@ function LogModel(filename, model)
    print('==> saving model to '..filename)
    torch.save(filename, model)
 end
-function Test(model_optim_crit, testData, opt, confusion, indicies)--add parameters
-  local model = model_optim_crit.model
+function Test(model, testData, opt, confusion, indicies)--add parameters
   model:evaluate()
   ret = {err=0}
   if indicies == nil then 

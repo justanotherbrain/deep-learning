@@ -2,7 +2,6 @@ require 'torch'
 require 'nn'
 require 'optim'
 require 'xlua'  
-dofile 'train_test.lua'
 dofile 'helpers.lua'
 --These functions assume:
 --all models use the same optimState 
@@ -24,7 +23,8 @@ dofile 'helpers.lua'
   --ModifyCombinedModel(combined)
   --TrainAndCompact(data, combined)
   --Finally test on data
-  
+
+
 function CreateModels(opt, parameters, modelGen, model_optim_critList)
   --Setup
     parameterList = {}
@@ -48,7 +48,7 @@ function CreateModels(opt, parameters, modelGen, model_optim_critList)
     end
     return model_optim_critList
 end
-
+--Minor note: The absolute minimum number of epochs is opt.maxEpoch+1
 function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logpackages)
   --Setup and invalid data checking
   local Train = trainFun
@@ -66,11 +66,11 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
   --Setup internals
   local modelResults = {}
   for i=1,#model_optim_critList do 
-    table.insert(modelResults, {bestPercentError=1,epochsLeft=opt.maxEpoch, finished= false}) 
+    table.insert(modelResults, {bestPercentError=1.1, epochsLeft=opt.maxEpoch, finished= false, model=nil}) 
   end
   local trainLoop = 
     function(foldIndex) 
-      print('==>Training')
+      print('===>Training')
       if logpackages ~= nil then logpackage = logpackages[foldIndex] end
       --Get inidices
       if opt.trainSetOnly == 1 or opt.models == 1 then
@@ -92,24 +92,25 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
         --Train model
         logpackage.trainConfusion:zero()
         local trainingResult = Train(model_optim_critList[foldIndex], trainData, opt, logpackage.trainConfusion, trainInds)
-        print ('====>Training error percentage: ' .. trainingResult.err)
+        print ('===>Training error percentage: ' .. trainingResult.err)
         --Test on validation
         if testInds ~= nil then 
           logpackage.testConfusion:zero()
-          print '====>Testing'
+          print '===>Testing'
           validationResult = Test(model_optim_critList[foldIndex], trainData, opt, logpackage.testConfusion, testInds)
-          print ('====>Validation error percentage: ' .. validationResult.err)
+          print ('===>Validation error percentage: ' .. validationResult.err)
           percentError = validationResult.err 
         else 
           --If we don't have a validation set
-          print '====>No Test Data'
+          print '===>No Test Data'
           percentError = trainingResult.err
         end
-        
         --Update
         if modelResults[foldIndex].bestPercentError > percentError then--If percent error goes down, update
+          print('===>Updating best model')
           modelResults[foldIndex].bestPercentError = percentError
           modelResults[foldIndex].epochsLeft = opt.maxEpoch + 1
+          modelResults[foldIndex].model = model_optim_critList[foldIndex].model:clone()
         end      
         modelResults[foldIndex].epochsLeft = modelResults[foldIndex].epochsLeft -1
         logpackage:log()--Log iteration
@@ -125,25 +126,27 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
   local epoch = 1
   local foldIndex = 0
   local numberConverged = 0
+  local conc
   --Loop until all models converge
   while numberConverged ~= #model_optim_critList do
     foldIndex = (foldIndex % #model_optim_critList) + 1
+    print('\n===>Training model ' .. foldIndex .. '\n')
     numberConverged = numberConverged + trainLoop(foldIndex)
     epoch = epoch + 1
     --Save a combined model every epoch
     if foldIndex == #model_optim_critList then 
-      if opt.models == 1 then 
+      if opt.models ~= 1 then 
         conc = nn.Concat(1)
         for i = 1,opt.models do
-          conc:add(model_optim_critList[i].model)
+          conc:add(modelResults[i].model)
           LogModel(opt.save .. '-combined_model.net', conc)
         end
       else
-        conc = model_optim_critList[1].model
+        conc = modelResults[1].model
       end
       
     end
   end
-  print ('Completed training, took ' .. epoch .. ' epochs.')
+  print ('Completed training, took ' .. epoch/opt.models .. ' epochs.')
   return conc
 end

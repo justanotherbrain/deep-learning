@@ -65,8 +65,10 @@ function DoAll()
     testData = torch.load('testData.t7')
     trainData = torch.load('trainData.t7')
   else
+    print('=>Loading data')
     dofile 'data.lua'  
   end
+  print('=>Loading needed files')
   dofile 'model.lua'
   dofile 'combine.lua'
 
@@ -78,7 +80,7 @@ function DoAll()
   --Train and combine models
   combined = TrainModels(model_optim_critList, opt, trainData, Train, nil, logpackages)
   --Test the data
-  testCM = optim.Confusionmatrix(opt.noutputs)
+  testCM = optim.ConfusionMatrix(parameters.noutputs)
   testResults = Test(combined, testData, opt, testCM)
   testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
   testLogger:add{['% mean class accuracy (test set)'] = testCM.totalValid * 100,
@@ -93,7 +95,9 @@ function DoAll()
         ['9'] = testCM.valids[9],
         ['0'] = testCM.valids[10]
       }
+ print(testCM)
 end
-print '==> executing all'
+print('=> Parsing command line')
 opt = ParseCommandline()
+print('Executing training and testing proccedure')
 DoAll()
