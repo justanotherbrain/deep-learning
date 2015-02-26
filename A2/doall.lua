@@ -71,8 +71,14 @@ function DoAll()
   dofile 'combine.lua'
 
   if opt.size ~= 'debug' then folds = trainData.fold_indices end
-  combined, results = TrainAndCompact(trainData, CreateModel, parameters, opt, folds)
-  testCM = optim.ConfusionMatrix(parameters.noutputs)
+  --Create models
+  model_optim_critList = CreateModels(opt, parameters, ModelOptimCrit)
+  --Create LogPackages
+  logpackages = CreateLogPackages(opt, parameters)
+  --Train and combine models
+  combined = TrainModels(model_optim_critList, opt, trainData, Train, nil, logpackages)
+  --Test the data
+  testCM = optim.Confusionmatrix(opt.noutputs)
   testResults = Test(combined, testData, opt, testCM)
   testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
   testLogger:add{['% mean class accuracy (test set)'] = testCM.totalValid * 100,
@@ -88,10 +94,6 @@ function DoAll()
         ['0'] = testCM.valids[10]
       }
 end
-
-
-
-
 print '==> executing all'
 opt = ParseCommandline()
 DoAll()
