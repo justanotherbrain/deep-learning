@@ -36,11 +36,11 @@ function ParseCommandline()
   cmd:option('-t0', 1, 'start averaging at t0 (ASGD only), in nb of epochs')
   cmd:option('-maxIter', 2, 'maximum nb of iterations for CG and LBFGS')
   cmd:option('-type', 'double', 'type: double | float | cuda')
-  cmd:option('-models', 1, 'number of models to train')
-  cmd:option('-trainSetOnly', 0, 'do not use validation set for training on a given fold? 1|0')
+  cmd:option('-models', 2, 'number of models to train')
   cmd:option('-maxEpoch', 4, 'number of epochs to train for without seeing the best guess improve')
   cmd:option('-angle', math.pi/18, 'angle to rotate the training images')
   cmd:option('-hflip', 1, 'reflect training images? 1|0')
+  cmd:option('-folds', 2, 'input to CreateFolds. <=1 for one model, otherwise, should equal #models')
   cmd:text()
   --DG addition
   opt = cmd:parse(arg or {})
@@ -78,7 +78,7 @@ function DoAll()
   --Create LogPackages
   logpackages = CreateLogPackages(opt, parameters)
   --Train and combine models
-  combined = TrainModels(model_optim_critList, opt, trainData, Train, nil, logpackages)
+  combined = TrainModels(model_optim_critList, opt, trainData, Train, opt.folds, logpackages)
   --Test the data
   testCM = optim.ConfusionMatrix(parameters.noutputs)
   testResults = Test(combined, testData, opt, testCM)

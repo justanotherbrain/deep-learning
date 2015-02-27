@@ -57,7 +57,7 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
   end
   local Train = trainFun
   --Create folds as needed
-  if type(folds) == 'table'
+  if type(folds) == 'table' then
     if #folds ~= #model_optim_critList then
       print 'WRONG NUMBER OF FOLDS'
       return
@@ -92,7 +92,7 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
         if folds[foldIndex].validation ~= nil then 
           logpackage.testConfusion:zero()
           print '===>Testing'
-          validationResult = Test(model_optim_critList[foldIndex], trainData, opt, logpackage.testConfusion, folds[foldIndex].validation)
+          validationResult = Test(model_optim_critList[foldIndex].model, trainData, opt, logpackage.testConfusion, folds[foldIndex].validation)
           print ('===>Validation error percentage: ' .. validationResult.err)
           percentError = validationResult.err 
         else 
@@ -126,7 +126,7 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
   --Loop until all models converge
   while numberConverged ~= #model_optim_critList do
     foldIndex = (foldIndex % #model_optim_critList) + 1
-    print('\n===>Training model ' .. foldIndex .. '\n')
+    print('\n===>Training model ' .. foldIndex .. ' epoch: ' .. epoch/opt.models.. '\n')
     numberConverged = numberConverged + trainLoop(foldIndex)
     epoch = epoch + 1
     --Save a combined model every epoch
@@ -135,14 +135,13 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
         conc = nn.Concat(1)
         for i = 1,opt.models do
           conc:add(modelResults[i].model)
-          LogModel(opt.save .. '-combined_model.net', conc)
         end
       else
         conc = modelResults[1].model
       end
-      
+      LogModel(opt.save .. '-combined_model.net', conc)
     end
   end
-  print ('Completed training, took ' .. epoch/opt.models .. ' epochs.')
+  print ('\n===>Completed training, took ' .. epoch/opt.models .. ' epochs.')
   return conc
 end

@@ -20,6 +20,7 @@ function CreateFolds(numModels, numSamples)
     print ('===>Splitting data into ' .. numTraining .. ' training samples and ' .. numSamples-numTraining .. ' validation samples.')
   elseif numModels == 1 then
     table.insert(ret,{training=folds})
+    print ('===>Training on all test data-no validation set.')
   else
     local n = math.floor(numSamples/numModels)
     for i = 1,numModels do
@@ -72,6 +73,3 @@ function Test(model, testData, opt, confusion, indicies)--add parameters
    ret.err = ret.err / indicies:size(1)
   return ret
 end
-
-test = CreateFolds(0.9, 99)
-print(test)
