@@ -1,3 +1,4 @@
+require 'torch'
 function RemoveLastLayers(model, n)
   --This assumes we're using nn.Sequential as out base...fix it if you want
   if n == 0 then return model end
@@ -8,11 +9,36 @@ function RemoveLastLayers(model, n)
   return ret
 end
 function CreateFolds(numModels, numSamples)
-  folds = torch.randperm(numSamples)
-  local n = math.floor(numSamples/numModels)
-  folds = torch.reshape(folds[{{1,numModels * n}}], n, numModels)--To make this clean, ignore the last #samples % #models samples
-  print ('==>Creating '.. numModels..' folds each with '.. n ..' samples')
-  return folds
+  local folds = torch.randperm(numSamples)
+  ret = {}
+  if numModels < 1 then
+    --If < 1, treat this number as percent used for training
+    local numTraining = math.floor(numModels * numSamples)
+    table.insert(ret,{
+        training=folds[{{1,numTraining}}], 
+        validation=folds[{{numTraining+1,-1}}]})
+    print ('===>Splitting data into ' .. numTraining .. ' training samples and ' .. numSamples-numTraining .. ' validation samples.')
+  elseif numModels == 1 then
+    table.insert(ret,{training=folds})
+  else
+    local n = math.floor(numSamples/numModels)
+    for i = 1,numModels do
+      local training
+      local validation = 
+      folds[{{(i-1)* n + 1, i * n}}]
+      if i == 1 then
+        training = folds[{{i * n + 1, -1}}]
+      elseif i == numModels then
+        training = folds[{{1, (i-1) * n}}]
+      else
+        training = torch.cat(folds[{{1, (i-1) * n}}], folds[{{i* n + 1, -1}}])
+      end
+      table.insert(ret, {training=training, validation= validation})
+    end
+      print ('==>Creating '.. numModels..' folds each with '.. n ..' training samples')
+  end
+  --To make this clean, ignore the last #samples % #models samples
+  return ret
 end
 function LogModel(filename, model) 
    os.execute('mkdir -p ' .. sys.dirname(filename))
@@ -46,3 +72,6 @@ function Test(model, testData, opt, confusion, indicies)--add parameters
    ret.err = ret.err / indicies:size(1)
   return ret
 end
+
+test = CreateFolds(0.9, 99)
+print(test)

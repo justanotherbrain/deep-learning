@@ -51,17 +51,23 @@ end
 --Minor note: The absolute minimum number of epochs is opt.maxEpoch+1
 function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logpackages)
   --Setup and invalid data checking
-  local Train = trainFun
-  if folds ~= nil and #folds ~= #model_optim_critList then
-    print 'WRONG NUMBER OF FOLDS'
-    return
-  elseif opt.models ~= #model_optim_critList then
+  if opt.models ~= #model_optim_critList then
     print 'WRONG NUMBER OF MODELS'
     return
   end
-  --Create folds if necessary
-  if folds == nil then 
-    folds = CreateFolds(#model_optim_critList, trainData.size) 
+  local Train = trainFun
+  --Create folds as needed
+  if type(folds) == 'table'
+    if #folds ~= #model_optim_critList then
+      print 'WRONG NUMBER OF FOLDS'
+      return
+    end
+  elseif type(folds) == 'number' then
+    if folds >= 1 and folds ~= #model_optim_critList then
+      print 'WRONG NUMBER OF FOLDS'
+      return
+    end
+    folds = CreateFolds(folds, trainData.size) 
   end
   --Setup internals
   local modelResults = {}
@@ -73,31 +79,17 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
       print('===>Training')
       if logpackages ~= nil then logpackage = logpackages[foldIndex] end
       --Get inidices
-      if opt.trainSetOnly == 1 or opt.models == 1 then
-        trainInds = folds[{{},foldIndex}]
-        testInds = nil
-      else--for normal, training on multiple subsets
-        local numTraining = folds:size(1) * (folds:size(2) - 1)
-        if foldIndex == 1 then 
-          trainInds = torch.reshape(folds[{{},{2,-1}}], numTraining, 1)
-        elseif foldIndex == folds:size(2) then
-          trainInds = torch.reshape(folds[{{},{1,-2}}], numTraining,1)
-        else
-          trainInds = torch.reshape(torch.cat(folds[{{},{1,foldIndex-1}}],folds[{{},{foldIndex+1,-1}}]), numTraining,1)
-        end
-        testInds = folds[{{},{foldIndex}}]
-      end
       --Train logic
       if not modelResults[foldIndex].finished then 
         --Train model
         logpackage.trainConfusion:zero()
-        local trainingResult = Train(model_optim_critList[foldIndex], trainData, opt, logpackage.trainConfusion, trainInds)
+        local trainingResult = Train(model_optim_critList[foldIndex], trainData, opt, logpackage.trainConfusion, folds[i].training)
         print ('===>Training error percentage: ' .. trainingResult.err)
         --Test on validation
-        if testInds ~= nil then 
+        if folds[i].validation ~= nil then 
           logpackage.testConfusion:zero()
           print '===>Testing'
-          validationResult = Test(model_optim_critList[foldIndex], trainData, opt, logpackage.testConfusion, testInds)
+          validationResult = Test(model_optim_critList[foldIndex], trainData, opt, logpackage.testConfusion, folds[i].validation)
           print ('===>Validation error percentage: ' .. validationResult.err)
           percentError = validationResult.err 
         else 
@@ -123,6 +115,7 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
       end  
       return 0
     end
+  --Setup more variables
   local epoch = 1
   local foldIndex = 0
   local numberConverged = 0
