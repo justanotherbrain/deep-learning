@@ -19,25 +19,25 @@ function ReadFiles(opt)
   label_fd:readByte(trainy:storage())
 
   -- Because data is in column-major, transposing the last 2 dimensions gives result that can be correctly visualized
-  traind = traind:transpose(3, 4)
+  --traind = traind:transpose(3, 4)
 
   -- Open the files and set little endian encoding
-  data_fd = torch.DiskFile("stl10_binary/test_X.bin", "r", true)
-  data_fd:binary():littleEndianEncoding()
-  label_fd = torch.DiskFile("stl10_binary/test_y.bin", "r", true)
-  label_fd:binary():littleEndianEncoding()
+  local data_fd2 = torch.DiskFile("stl10_binary/test_X.bin", "r", true)
+  data_fd2:binary():littleEndianEncoding()
+  local label_fd2 = torch.DiskFile("stl10_binary/test_y.bin", "r", true)
+  label_fd2:binary():littleEndianEncoding()
 
   -- Create and read the data
   local testd = torch.ByteTensor(8000, 3, 96, 96)
-  data_fd:readByte(traind:storage())
+  data_fd2:readByte(testd:storage())
   local testy = torch.ByteTensor(8000,1)
-  label_fd:readByte(testy:storage())
+  label_fd2:readByte(testy:storage())
 
   -- Because data is in column-major, transposing the last 2 dimensions gives result that can be correctly visualized
-  testd = testd:transpose(3, 4)
+  --testd = testd:transpose(3, 4)
 
   if not opt or opt.size == 'debug' then
-    trsize = 2
+    trsize = 20
     tesize = 2
     print '==>Debugging, using ultra reduced dataset'
   else
@@ -45,6 +45,7 @@ function ReadFiles(opt)
     tesize = testd:size(1)
     print ('==>Using full data set Train:' .. trsize .. ' Test:' .. tesize)
   end
+  
   traind = torch.reshape(traind, torch.LongStorage{traind:size(1), 3,96,96})[{{1,trsize},{},{},{}}]:float()
   trainy = trainy[{{1,trsize},{}}]
 
@@ -118,8 +119,8 @@ function Preprocess(trainData, testData, opt)
   -- Normalize test data, using the training means/stds
   for i,channel in ipairs(channels) do
      -- normalize each channel globally:
-     trainData.X[{ {},i,{},{} }]:add(-mean[i])
-     trainData.X[{ {},i,{},{} }]:div(std[i])
+     testData.X[{ {},i,{},{} }]:add(-mean[i])
+     testData.X[{ {},i,{},{} }]:div(std[i])
   end
   -- Local normalization
   print '==> preprocessing data: normalize all three channels locally'
@@ -178,7 +179,7 @@ end
 function hflip(slice, n_a)
     return image.hflip(slice)
 end
-opt = {size='full'}
+opt = {size='debug', angle=math.pi/18,hflip=1}
 trainData, testData = ReadFiles(opt)
 TransformImages(trainData, opt)
 Preprocess(trainData, testData, opt)

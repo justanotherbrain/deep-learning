@@ -36,11 +36,11 @@ function ParseCommandline()
   cmd:option('-t0', 1, 'start averaging at t0 (ASGD only), in nb of epochs')
   cmd:option('-maxIter', 2, 'maximum nb of iterations for CG and LBFGS')
   cmd:option('-type', 'double', 'type: double | float | cuda')
-  cmd:option('-models', 2, 'number of models to train')
+  cmd:option('-models', 1, 'number of models to train')
   cmd:option('-maxEpoch', 4, 'number of epochs to train for without seeing the best guess improve')
   cmd:option('-angle', math.pi/18, 'angle to rotate the training images')
   cmd:option('-hflip', 1, 'reflect training images? 1|0')
-  cmd:option('-folds', 2, 'input to CreateFolds. <=1 for one model, otherwise, should equal #models')
+  cmd:option('-folds', 1, 'input to CreateFolds. <=1 for one model, otherwise, should equal #models')
   cmd:text()
   --DG addition
   opt = cmd:parse(arg or {})
@@ -60,15 +60,15 @@ function ParseCommandline()
 
 end
 
-function DoAll()
+function DoAll(opt)
   if false then 
     testData = torch.load('testData.t7')
     trainData = torch.load('trainData.t7')
   else
-    print('=>Loading data')
+    print('\n=>Loading data')
     dofile 'data.lua'  
   end
-  print('=>Loading needed files')
+  print('\n=>Loading needed files')
   dofile 'model.lua'
   dofile 'combine.lua'
 
@@ -76,12 +76,12 @@ function DoAll()
   --Create models
   model_optim_critList = CreateModels(opt, parameters, ModelOptimCrit)
   --Create LogPackages
-  logpackages = CreateLogPackages(opt, parameters)
+  logpackages = CreateLogPackages(opt, parameters, opt.folds)
   --Train and combine models
   combined = TrainModels(model_optim_critList, opt, trainData, Train, opt.folds, logpackages)
   --Test the data
   testCM = optim.ConfusionMatrix(parameters.noutputs)
-  testResults = Test(combined, testData, opt, testCM)
+  --testResults = Test(combined, testData, opt, testCM)
   testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
   testLogger:add{['% mean class accuracy (test set)'] = testCM.totalValid * 100,
         ['1'] = testCM.valids[1],
@@ -96,8 +96,9 @@ function DoAll()
         ['0'] = testCM.valids[10]
       }
  print(testCM)
+ return model_optim_critList
 end
 print('=> Parsing command line')
 opt = ParseCommandline()
 print('Executing training and testing proccedure')
-DoAll()
+DoAll(opt)

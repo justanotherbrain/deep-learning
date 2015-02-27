@@ -118,21 +118,21 @@ end
 function Train(model_optim_crit, trainData, opt, confusion, indicies)
   local optimMethod = model_optim_crit.optimMethod
   local optimState = model_optim_crit.optimState
-  local criterion = model_optim_crit.criterion:clone()
+  local criterion = model_optim_crit.criterion
   local model = model_optim_crit.model
   ret = {err=0}
   model:training()
-  if indicies:size():size() == 2 then indicies = indicies:reshape(indicies:size(1)) end
+  shuffle = torch.randperm(indicies:size(1))
   local parameters,gradParameters = model:getParameters()
   for t = 1,indicies:size(1),opt.batchSize do
-    --xlua.progress(t, indicies:size(1))
+    xlua.progress(t, indicies:size(1))
     -- create mini batch
     local inputs = {}
     local targets = {}
     for i = t,math.min(t+opt.batchSize-1,indicies:size(1)) do
        -- load new sample
-       local input = trainData.X[indicies[i]]
-       local target = trainData.y[indicies[i]]
+       local input = trainData.X[indicies[shuffle[i]]]
+       local target = trainData.y[indicies[shuffle[i]]]
        if opt.type == 'double' then input = input:double()
        elseif opt.type == 'cuda' then input = input:cuda() end
        table.insert(inputs, {input, indicies[i]})--DG change, Inputs is now an array of tuples
@@ -141,7 +141,6 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
 
     -- create closure to evaluate f(X) and df/dX
     local feval = function(x)
-                    
                      -- get new parameters
                      if x ~= parameters then
                         parameters:copy(x)
@@ -233,6 +232,7 @@ function CreateLogPackages(opt, parameters, numFolds)
   for i = 1,opt.models do
     ret[i] = {}
     if numFolds ~= 1 then 
+      print('ding')
       ret[i].testConfusion = optim.ConfusionMatrix(noutputs) 
       ret[i].testLogger = optim.Logger(paths.concat(opt.save, 'test' .. i .. '.log')) 
     end
