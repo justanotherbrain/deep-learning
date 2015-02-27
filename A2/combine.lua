@@ -68,6 +68,9 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
       return
     end
     folds = CreateFolds(folds, trainData.size) 
+  else
+    print 'INVALID FOLD DATA TYPE'
+    return
   end
   --Setup internals
   local modelResults = {}
@@ -83,13 +86,13 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
       if not modelResults[foldIndex].finished then 
         --Train model
         logpackage.trainConfusion:zero()
-        local trainingResult = Train(model_optim_critList[foldIndex], trainData, opt, logpackage.trainConfusion, folds[i].training)
+        local trainingResult = Train(model_optim_critList[foldIndex], trainData, opt, logpackage.trainConfusion, folds[foldIndex].training)
         print ('===>Training error percentage: ' .. trainingResult.err)
         --Test on validation
-        if folds[i].validation ~= nil then 
+        if folds[foldIndex].validation ~= nil then 
           logpackage.testConfusion:zero()
           print '===>Testing'
-          validationResult = Test(model_optim_critList[foldIndex], trainData, opt, logpackage.testConfusion, folds[i].validation)
+          validationResult = Test(model_optim_critList[foldIndex], trainData, opt, logpackage.testConfusion, folds[foldIndex].validation)
           print ('===>Validation error percentage: ' .. validationResult.err)
           percentError = validationResult.err 
         else 
