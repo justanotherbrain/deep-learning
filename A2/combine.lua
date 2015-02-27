@@ -52,19 +52,19 @@ end
 function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logpackages)
   --Setup and invalid data checking
   if opt.models ~= #model_optim_critList then
-    print 'WRONG NUMBER OF MODELS'
+    print 'Model sizes to not match up.'
     return
   end
   local Train = trainFun
   --Create folds as needed
   if type(folds) == 'table' then
     if #folds ~= #model_optim_critList then
-      print 'WRONG NUMBER OF FOLDS'
+      print '#folds ~= ~models'
       return
     end
   elseif type(folds) == 'number' then
-    if folds >= 1 and folds ~= #model_optim_critList then
-      print 'WRONG NUMBER OF FOLDS'
+    if folds >= 1 and folds ~= #model_optim_critList or folds < 1 and #model_optim_critList ~= 1 then
+      print 'Fold is a number; mismatch with models'
       return
     end
     folds = CreateFolds(folds, trainData.size) 

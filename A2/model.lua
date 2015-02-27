@@ -240,6 +240,21 @@ function CreateLogPackages(opt, parameters, numFolds)
     ret[i].trainLogger = optim.Logger(paths.concat(opt.save, 'train' .. i .. '.log'))
     ret[i].log = 
     function(self)
+      print '===>Train Confusion'
+      print (self.trainConfusion)
+
+      self.trainLogger:add{['% mean class accuracy (train set)'] = self.trainConfusion.totalValid * 100,
+          ['1'] = self.trainConfusion.valids[1],
+          ['2'] = self.trainConfusion.valids[2],
+          ['3'] = self.trainConfusion.valids[3],
+          ['4'] = self.trainConfusion.valids[4],
+          ['5'] = self.trainConfusion.valids[5],
+          ['6'] = self.trainConfusion.valids[6],
+          ['7'] = self.trainConfusion.valids[7],
+          ['8'] = self.trainConfusion.valids[8],
+          ['9'] = self.trainConfusion.valids[9],
+          ['0'] = self.trainConfusion.valids[10]
+        }
       if self.testLogger ~= nil then
         print '===>Test Confusion'
         print (self.testConfusion)
@@ -257,21 +272,6 @@ function CreateLogPackages(opt, parameters, numFolds)
             ['0'] = self.trainConfusion.valids[10]
           }
       end
-      print '===>Train Confusion'
-      print (self.trainConfusion)
-
-      self.trainLogger:add{['% mean class accuracy (train set)'] = self.trainConfusion.totalValid * 100,
-          ['1'] = self.trainConfusion.valids[1],
-          ['2'] = self.trainConfusion.valids[2],
-          ['3'] = self.trainConfusion.valids[3],
-          ['4'] = self.trainConfusion.valids[4],
-          ['5'] = self.trainConfusion.valids[5],
-          ['6'] = self.trainConfusion.valids[6],
-          ['7'] = self.trainConfusion.valids[7],
-          ['8'] = self.trainConfusion.valids[8],
-          ['9'] = self.trainConfusion.valids[9],
-          ['0'] = self.trainConfusion.valids[10]
-        }
     end
   end
   return ret
