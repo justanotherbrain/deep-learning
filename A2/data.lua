@@ -3,7 +3,6 @@ require 'image'
 require 'nn' 
 
 print '==> loading, reshaping, and transforming color of data'
-if not opt then opt = {angle=math.pi/18,hflip=1} end
 
 --Load Data
 function ReadFiles(opt)
@@ -31,17 +30,20 @@ function ReadFiles(opt)
   -- Create and read the data
   local testd = torch.ByteTensor(8000, 3, 96, 96)
   data_fd:readByte(traind:storage())
-  local testy = torch.ByteTensor(5000,1)
+  local testy = torch.ByteTensor(8000,1)
   label_fd:readByte(testy:storage())
 
   -- Because data is in column-major, transposing the last 2 dimensions gives result that can be correctly visualized
   testd = testd:transpose(3, 4)
 
-  trsize = 5000
-  tesize = 8000
   if not opt or opt.size == 'debug' then
     trsize = 2
     tesize = 2
+    print '==>Debugging, using ultra reduced dataset'
+  else
+    trsize = traind:size(1)
+    tesize = testd:size(1)
+    print ('==>Using full data set Train:' .. trsize .. ' Test:' .. tesize)
   end
   traind = torch.reshape(traind, torch.LongStorage{traind:size(1), 3,96,96})[{{1,trsize},{},{},{}}]:float()
   trainy = trainy[{{1,trsize},{}}]
@@ -176,6 +178,7 @@ end
 function hflip(slice, n_a)
     return image.hflip(slice)
 end
-trainData, testData = ReadFiles()
+opt = {size='full'}
+trainData, testData = ReadFiles(opt)
 TransformImages(trainData, opt)
 Preprocess(trainData, testData, opt)
