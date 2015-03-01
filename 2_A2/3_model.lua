@@ -73,7 +73,26 @@ normkernel = image.gaussian1D(7)
 
 
 if opt.type == 'gpu' then
+	model = nn.Sequential()
+
+	-- stage 1: filter bank -> squashing -> L2 pooling -> normalization
+	model:add(nn.SpatialConvolutionMM(nstates[1], nstates[2], filtsize, filtsize))
+	model:add(nn.ReLU())
+	model:add(nn.SpatialMaxPooling(poolsize,poolsize,poolsize,poolsize))
 	
+	-- stage 2: filter bank -> squashing -> L2 pooling -> normalization
+	model:add(nn.SpatialConvolutionMM(nstates[1], nstates[2], filtsize, filtsize))
+	model:add(nn.ReLu())
+	model:add(nn.SpatialMaxPooling(poolsize, poolsize, poolsize, poolsize))
+
+	-- stage 3: standard 2-layer neural network
+	model:add(nn.View(nstates[2]*filtsize*filtsize))
+	model:add(nn.Dropout(0.5))
+	model:add(nn.Linear(nstates[2]*filtsize*filtsize,nstates[3]))
+	model:add(nn.ReLU())
+	model:add(nn.Linear(nstates[3],noutputs))
+
+
 
 else
 	-- filter the images using a V1 filter (inspired by neuroscience). Then
