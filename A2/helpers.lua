@@ -46,9 +46,14 @@ function LogModel(filename, model)
    print('==> saving model to '..filename)
    torch.save(filename, model)
 end
-function Test(model, testData, opt, confusion, indicies)--add parameters
+function Test(model, testData, opt, confusion, indicies, kagglecsv)--add parameters
   model:evaluate()
-  ret = {err=0}
+  if kagglecsv ~= nil then
+      require 'csvigo'
+      table.insert(ret, {'Id,Category'})
+  end
+  err = 0
+  ret = {}
   if indicies == nil then 
     indicies = torch.range(1,testData.size)
   elseif indicies:size():size() == 2 then
@@ -68,17 +73,22 @@ function Test(model, testData, opt, confusion, indicies)--add parameters
       local pred = model:forward(input)
       _, guess  = torch.max(pred,1)
       if  confusion ~= nil then confusion:add(pred, target) end
-      ret.err = ret.err + ((guess[1] ~= target) and 1 or 0)
+      err = err + ((guess[1] ~= target) and 1 or 0)
+      table.insert(ret, {indicies[t], guess})
    end
-   ret.err = ret.err / indicies:size(1)
+   err = err / indicies:size(1)
+   if kagglecsv ~= nil then 
+       csvigo.save{data=ret, path=paths.concat(opt.save, kagglecs)v}
+   end
+   ret.err = err
   return ret
 end
-function LoadAndTest(opt, testData, modelName)
+function LoadAndTest(opt, testData, modelName, kagglecsv)
   require 'nn'
   print ('==>Testing on test data, ' .. testData.size .. ' samples')
   local model = torch.load(paths.concat(opt.save, modelName))
   local testCM = optim.ConfusionMatrix(parameters.noutputs)
-  local testResults = Test(model, testData, opt, testCM)
+  local testResults = Test(model, testData, opt, testCM, kagglecsv)
   local testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
   print(testCM)
   testLogger:add{['% mean class accuracy (test set)'] = testCM.totalValid * 100,

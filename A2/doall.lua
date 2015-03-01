@@ -41,9 +41,10 @@ function ParseCommandline()
   cmd:option('-angle', math.pi/18, 'angle to rotate the training images')
   cmd:option('-hflip', 1, 'reflect training images? 1|0')
   cmd:option('-folds', 1, 'input to CreateFolds. <=1 for one model, otherwise, should equal #models')
-  cmd:text()
   cmd:option('-trteb', 3, 'train test or both 1=train,2=test,3=both')
-  --DG addition
+  cmd:option('-kaggle','kaggle.csv','where to save to')
+  cmd:text()
+    --DG addition
   opt = cmd:parse(arg or {})
 
   -- nb of threads and fixed seed (for repeatable experiments)
@@ -90,7 +91,7 @@ function DoAll(opt)
     combined = TrainModels(model_optim_critList, opt, trainData, Train, folds, logpackages)
   end
   --Test the data
-  if opt.trteb ~= 1 then LoadAndTest(opt, testData, 'combined_model.net') end
+  if opt.trteb ~= 1 then LoadAndTest(opt, testData, 'combined_model.net', opt.kaggle) end
  return model_optim_critList
 end
 print('=> Parsing command line')
