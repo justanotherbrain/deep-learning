@@ -73,3 +73,24 @@ function Test(model, testData, opt, confusion, indicies)--add parameters
    ret.err = ret.err / indicies:size(1)
   return ret
 end
+function LoadAndTest(opt, testData, modelName)
+  require 'nn'
+  print '==>Testing on test data'
+  local model = torch.load(paths.concat(opt.save, modelName))
+  local testCM = optim.ConfusionMatrix(parameters.noutputs)
+  local testResults = Test(model, testData, opt, testCM)
+  local testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
+  testLogger:add{['% mean class accuracy (test set)'] = testCM.totalValid * 100,
+        ['1'] = testCM.valids[1],
+        ['2'] = testCM.valids[2],
+        ['3'] = testCM.valids[3],
+        ['4'] = testCM.valids[4],
+        ['5'] = testCM.valids[5],
+        ['6'] = testCM.valids[6],
+        ['7'] = testCM.valids[7],
+        ['8'] = testCM.valids[8],
+        ['9'] = testCM.valids[9],
+        ['0'] = testCM.valids[10]
+      }
+ print(testCM)
+end

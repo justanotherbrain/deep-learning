@@ -42,6 +42,7 @@ function ParseCommandline()
   cmd:option('-hflip', 1, 'reflect training images? 1|0')
   cmd:option('-folds', 1, 'input to CreateFolds. <=1 for one model, otherwise, should equal #models')
   cmd:text()
+  cmd:option('-trteb', 3, 'train test or both 1=train,2=test,3=both')
   --DG addition
   opt = cmd:parse(arg or {})
 
@@ -72,30 +73,21 @@ function DoAll(opt)
   dofile 'model.lua'
   dofile 'combine.lua'
 
-  if opt.size ~= 'debug' then folds = trainData.fold_indices end
-  --Create models
-  model_optim_critList = CreateModels(opt, parameters, ModelOptimCrit)
-  --Create LogPackages
-  logpackages = CreateLogPackages(opt, parameters, opt.folds)
-  --Train and combine models
-  combined = TrainModels(model_optim_critList, opt, trainData, Train, opt.folds, logpackages)
+  if opt.size ~= 'debug' and trainData.fold_indices ~= nil then 
+    folds = trainData.fold_indices 
+  else 
+    folds = opt.folds
+  end
+  if opt.trteb ~= 2 then
+    --Create models
+    model_optim_critList = CreateModels(opt, parameters, ModelOptimCrit)
+    --Create LogPackages
+    logpackages = CreateLogPackages(opt, parameters, opt.folds)
+    --Train and combine models
+    combined = TrainModels(model_optim_critList, opt, trainData, Train, folds, logpackages)
+  end
   --Test the data
-  testCM = optim.ConfusionMatrix(parameters.noutputs)
-  --testResults = Test(combined, testData, opt, testCM)
-  testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
-  testLogger:add{['% mean class accuracy (test set)'] = testCM.totalValid * 100,
-        ['1'] = testCM.valids[1],
-        ['2'] = testCM.valids[2],
-        ['3'] = testCM.valids[3],
-        ['4'] = testCM.valids[4],
-        ['5'] = testCM.valids[5],
-        ['6'] = testCM.valids[6],
-        ['7'] = testCM.valids[7],
-        ['8'] = testCM.valids[8],
-        ['9'] = testCM.valids[9],
-        ['0'] = testCM.valids[10]
-      }
- print(testCM)
+  if opt.trteb ~= 1 then LoadAndTest(opt, testData, 'combined_model.net') end
  return model_optim_critList
 end
 print('=> Parsing command line')

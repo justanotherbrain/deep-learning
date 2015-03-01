@@ -232,7 +232,6 @@ function CreateLogPackages(opt, parameters, numFolds)
   for i = 1,opt.models do
     ret[i] = {}
     if numFolds ~= 1 then 
-      print('ding')
       ret[i].testConfusion = optim.ConfusionMatrix(noutputs) 
       ret[i].testLogger = optim.Logger(paths.concat(opt.save, 'test' .. i .. '.log')) 
     end

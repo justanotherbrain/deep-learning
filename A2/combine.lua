@@ -139,7 +139,7 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
       else
         conc = modelResults[1].model
       end
-      LogModel(opt.save .. '-combined_model.net', conc)
+      LogModel(paths.concat(opt.save, 'combined_model.net'), conc)
     end
   end
   print ('\n===>Completed training, took ' .. epoch/opt.models .. ' epochs.')
