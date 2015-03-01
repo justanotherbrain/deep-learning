@@ -80,6 +80,7 @@ function LoadAndTest(opt, testData, modelName)
   local testCM = optim.ConfusionMatrix(parameters.noutputs)
   local testResults = Test(model, testData, opt, testCM)
   local testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
+  print(testCM)
   testLogger:add{['% mean class accuracy (test set)'] = testCM.totalValid * 100,
         ['1'] = testCM.valids[1],
         ['2'] = testCM.valids[2],
@@ -92,5 +93,4 @@ function LoadAndTest(opt, testData, modelName)
         ['9'] = testCM.valids[9],
         ['0'] = testCM.valids[10]
       }
- print(testCM)
 end

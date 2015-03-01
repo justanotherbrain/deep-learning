@@ -111,7 +111,7 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
         logpackage:log()--Log iteration
         
         --Convergence conditions
-        if modelResults[foldIndex].epochsLeft == 0 or modelResults[foldIndex].bestPercentError < 1e-3 then
+        if modelResults[foldIndex].epochsLeft == 0 or modelResults[foldIndex].bestPercentError < 1e-2 then
           modelResults[foldIndex].finished = true
           return 1 --Return 1 when the model finishes
         end
