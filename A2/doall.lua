@@ -68,6 +68,9 @@ function DoAll(opt)
   else
     print('\n=>Loading data')
     dofile 'data.lua'  
+    trainData, testData = ReadFiles(opt)
+    TransformImages(trainData, opt)
+    Preprocess(trainData, testData, opt)
   end
   print('\n=>Loading needed files')
   dofile 'model.lua'

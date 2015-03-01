@@ -179,7 +179,3 @@ end
 function hflip(slice, n_a)
     return image.hflip(slice)
 end
-opt = {size='debug', angle=math.pi/18,hflip=1}
-trainData, testData = ReadFiles(opt)
-TransformImages(trainData, opt)
-Preprocess(trainData, testData, opt)

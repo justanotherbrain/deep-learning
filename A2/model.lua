@@ -258,7 +258,7 @@ function CreateLogPackages(opt, parameters, numFolds)
         print '===>Test Confusion'
         print (self.testConfusion)
         
-        self.testLogger:add{['% mean class accuracy (train set)'] = self.testConfusion.totalValid * 100,
+        self.testLogger:add{['% mean class accuracy (validation set)'] = self.testConfusion.totalValid * 100,
             ['1'] = self.trainConfusion.valids[1],
             ['2'] = self.trainConfusion.valids[2],
             ['3'] = self.trainConfusion.valids[3],

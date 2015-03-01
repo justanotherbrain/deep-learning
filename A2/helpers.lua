@@ -75,7 +75,7 @@ function Test(model, testData, opt, confusion, indicies)--add parameters
 end
 function LoadAndTest(opt, testData, modelName)
   require 'nn'
-  print '==>Testing on test data'
+  print ('==>Testing on test data, ' .. testData.size .. ' samples')
   local model = torch.load(paths.concat(opt.save, modelName))
   local testCM = optim.ConfusionMatrix(parameters.noutputs)
   local testResults = Test(model, testData, opt, testCM)
