@@ -32,7 +32,7 @@ print '==> download dataset'
 
 --dir = '/scratch/courses/DSGA1008/A2/matlab'
 dir = paths.cwd() .. '/'
-if not paths.dirp(dir) then
+if not paths.filep(dir .. 'train.mat') then
 	os.execute('wget -qO- http://ai.stanford.edu/~acoates/stl10/stl10_matlab.tar.gz | tar xvz')
 	os.execute('mv stl10_matlab/* .')
 	train_file = 'train.mat'
@@ -63,15 +63,18 @@ testData = {
 	size = function() return test_size end
 }
 
-loaded = matio.load(unlabeled_file)
-t = loaded.X:transpose(1,2)
-unlabeled_size = t:size()
+-- loaded = matio.load(unlabeled_file)
+-- t = loaded.X:transpose(1,2)
+-- unlabeled_size = t:size()
+loaded = torch.DiskFile('unlabeled_X.bin','r',true)
+loaded:binary():littleEndianEncoding()
+tmp = torch.ByteTensor(100000,96,96,3)
+loaded:readByte(tmp:storage())
+unlabeled_size = 100000
 unlabeledData = {
-	data = torch.reshape(t,unlabeled_size[2],96,96,3),
-	labels = loaded.y[1],
+	data = tmp:transpose(2,3),
 	size = function() return unlabeled_size end
 }
-
 
 -------------------------------------------------------------
 print '==> preprocessing data'
@@ -85,16 +88,16 @@ unlabeledData.data = unlabeledData.data:float()
 -- Convert images to YUV
 print '==> preprocessing data: colorspace RGB -> YUV'
 
-for i = 1,trainData:size() do
+for i = 1,train_size[2] do
 	trainData.data[i] = image.rgb2yuv(trainData.data[i])
 end
 
-for i = 1,testData:size() do
+for i = 1,test_size[2] do
 	testData.data[i] = image.rgb2yuv(testData.data[i])
 end
 
-for i = 1,unlabeledData:size() do
-	unlabeledData[i] = image.rgb2yuv(unlabeledData.data[i])
+for i = 1,unlabeled_size do
+	unlabeledData.data[i] = image.rgb2yuv(unlabeledData.data[i])
 end
 
 
@@ -109,8 +112,8 @@ mean = {}
 std = {}
 
 for i,channel in ipairs(channels) do
-	mean[t] = unlabeledData[{ {}, i, {}, {} }]:mean()
-	std[i] = unlabeledData[{ {}, i, {}, {} }]:std()
+	mean[i] = unlabeledData.data[{ {}, i, {}, {} }]:mean()
+	std[i] = unlabeledData.data[{ {}, i, {}, {} }]:std()
 	unlabeledData.data[{ {}, i, {}, {} }]:add(-mean[i])
 	unlabeledData.data[{ {}, i, {}, {} }]:div(std[i])
 
@@ -122,6 +125,25 @@ for i,channel in ipairs(channels) do
 	testData.data[{ {}, i, {}, {} }]:add(-mean[i])
 	testData.data[{ {}, i, {}, {} }]:div(std[i])
 end
+
+
+neighborhood = image.gaussian1D(13)
+normalization = nn.SpatialContrastiveNormalization(1,neighborhood,1):float()
+
+for c in ipairs(channels) do
+	for i = 1,train_size[2] do
+		trainData.data[{i,{c},{},{}}] = normalization:forward(trainData.data[{i,{c},{},{},}])
+	end
+	for i = 1,test_size[2] do
+		testData.data[{i,{c},{},{}}]=normalization:forward(testData.data[{i,{c},{},{}}])
+	end
+	for i = 1,unlabeled_size do
+		unlabeledData.data[{i,{c},{},{}}]=normalization:forward(unlabeledData.data[{i,{c},{},{}}])
+	end
+end
+		
+
+
 
 for i,channel in ipairs(channels) do
 	trainMean = trainData.data[{ {},i }]:mean()

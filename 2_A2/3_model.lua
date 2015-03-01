@@ -72,8 +72,8 @@ poolsize = 2
 normkernel = image.gaussian1D(7)
 
 
-if opt.type == 'cuda' then
-	-- TODO
+if opt.type == 'gpu' then
+	
 
 else
 	-- filter the images using a V1 filter (inspired by neuroscience). Then

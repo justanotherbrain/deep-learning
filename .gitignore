@@ -7,3 +7,4 @@ train_32x32.t7
 *.fuse*
 *.t7
 *.mat
+*.bin
