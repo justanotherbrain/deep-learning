@@ -1,3 +1,6 @@
 *.net
 *.t7
 .fuse*
+*.log
+*.orig
+

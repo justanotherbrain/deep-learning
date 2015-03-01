@@ -1,0 +1,11 @@
+#!/bin/bash
+#PBS -l nodes=1:ppn=1:gpus=1:titan
+#PBS -l walltime=00:30:00
+#PBS -l mem=18GB
+
+module purge
+module load cuda/6.5.12
+
+TORCHDIR=/scratch/courses/DSGA1008/bin
+export PATH=$PATH:$TORCHDIR
+th doall.lua -type cuda -trteb 2 -size full
