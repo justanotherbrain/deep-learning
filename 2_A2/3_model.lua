@@ -88,6 +88,7 @@ else
 	model:add(nn.SpatialLPPooling(nstates[1],2,poolsize,poolsize,poolsize,poolsize))
 	model:add(nn.SpatialSubtractiveNormalization(nstates[1],normkernel))
 
+
 	-- layer 2: filter, squash l2 pooling, normalize
 	model:add(nn.SpatialConvolutionMM(nstates[1], nstates[2], filtsize, filtsize))
 	model:add(nn.Tanh())
