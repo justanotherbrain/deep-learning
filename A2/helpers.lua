@@ -1,3 +1,5 @@
+
+
 function RemoveLastLayers(model, n)
   --This assumes we're using nn.Sequential as out base...fix it if you want
   if n == 0 then return model end
@@ -7,6 +9,8 @@ function RemoveLastLayers(model, n)
   end
   return ret
 end
+
+
 function CreateFolds(numModels, numSamples)
   folds = torch.randperm(numSamples)
   local n = math.floor(numSamples/numModels)
@@ -14,11 +18,15 @@ function CreateFolds(numModels, numSamples)
   print ('==>Creating '.. numModels..' folds each with '.. n ..' samples')
   return folds
 end
+
+
 function LogModel(filename, model) 
    os.execute('mkdir -p ' .. sys.dirname(filename))
    print('==> saving model to '..filename)
    torch.save(filename, model)
 end
+
+
 function Test(model, testData, opt, confusion, indicies)--add parameters
   model:evaluate()
   ret = {err=0}

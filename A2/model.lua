@@ -227,6 +227,8 @@ function OptimizerAndCriterion(opt)
   if opt.type == 'cuda' then criterion:cuda() end
   return {optimState=optimState, optimMethod=optimMethod, criterion=criterion} 
 end
+
+
 function CreateLogPackages(opt, parameters)
   local noutputs = parameters.noutputs
   ret = {}
