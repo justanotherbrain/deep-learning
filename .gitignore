@@ -3,4 +3,4 @@
 .fuse*
 *.log
 *.orig
-
+*.csv
