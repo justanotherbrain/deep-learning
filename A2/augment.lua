@@ -18,12 +18,48 @@ require 'image'
 require 'xlua'
 require 'math'
 
+
+function generate_samples( input, commitee_count, real_seeds_count, faux_samples_count, patch_size )
+	
+	--
+	-- this is to generate a set of aumented data
+	-- commitee_count: number of disjoint sets of samples are used for aumentation
+	-- real_seeds_count: number of random real images used to generate the new ones
+	-- samples_count: number of faux samples to be generated from each real one 
+	--
+	-- note that real_seeds_count * commitee_count cannot exceed the input size, since we are subtractively sampling
+	--
+
+
+	commitee_count = commitee_count or 2
+	real_seeds_count = real_seeds_count or 10
+	shuffle_indices = torch.randperm(commitee_count * real_seeds_count)
+	patch_size = patch_size or 36 
+	faux_samples_count = faux_samples_count or 64
+	progress = 0
+
+
+	for i=1,commitee_count do
+	 	local to_augment = torch.Tensor(real_seeds_count, input:size()[2], 96, 96)
+	 	local labels = torch.Tensor(real_seeds_count * faux_samples_count)
+		for j=1,real_seeds_count do
+			local index = (commitee_count - 1) * real_seeds_count  + j
+			to_augment[index % real_seeds_count + 1] = input[shuffle_indices[index]]
+			labels:sub(index % real_seeds_count + 1, (index % real_seeds_count + 1) + faux_samples_count):fill(index) 
+		end
+        augmented_data = apply_trans(to_augment, patch_size, faux_samples_count)
+        torch.save('SurrogateData/surrogate_traindata_' .. i .. '.t7', augmented_data)
+        torch.save('SurrogateData/surrogate_labels_' .. i .. '.t7', labels)
+	end
+	print (faux_samples_count * real_seeds_count * commitee_count .. ' training images generated in ' .. commitee_count .. ' files')
+end
+
 function apply_trans( imgs ,patch_size , samples_count, transforms )
 
-	-- conveinience method for using this packages tools
-	-- successively apply transforms to each image. 
-	
-	transforms = transforms or {rotate_transform, translate_transform, scale_transform, get_inset, color_transform}
+	-- conveinience method for using this packages tools  
+	-- successively apply transforms to each image.     
+
+	transforms = transforms or {flip_transform, rotate_transform, translate_transform, scale_transform, get_inset, color_transform}
 	patch_size = patch_size or 36 
 	samples_count = samples_count or 64
 	
@@ -81,6 +117,18 @@ function rotate_transform( img, max_theta )
 	max_theta = max_theta or math.pi * 0.23
 	r = (torch.rand(2) * max_theta) -  max_theta / 2
 	return image.rotate(img ,r[1])		
+end
+
+function flip_transform( img )
+
+	-- this should be ok for everthing except for text right?
+
+	if torch.uniform() < 0.5 then
+		return image.hflip(img)
+	else
+		return img
+	end
+
 end
 
 function color_transform( img, max_hue_shift, max_sat_shift, max_val_shift )

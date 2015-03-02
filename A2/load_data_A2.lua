@@ -7,7 +7,7 @@ require 'math'
 
 local matio = require 'matio'
 
-data_directory = 'stl10_matlab/'
+data_directory = '/Users/sam.royston/Downloads/stl10_binary/'
 
 train_file = 'train_X.bin'
 train_labels_file = 'train_y.bin'
@@ -72,11 +72,11 @@ test_data = test_data:transpose(3, 4)
 local number_of_ims = 15
 copied = test_data:sub(200, 200 + number_of_ims - 1)
 
+generate_samples(test_data)
 
 single = test_data[16]
 
-t = torch.Tensor(100,3,36,36):fill(0)
-new_imgs = apply_trans(copied)
+
 
 
 -- for i=1,100 do
@@ -89,11 +89,11 @@ new_imgs = apply_trans(copied)
 -- 	-- t[i] = single
 -- end
 
-input = image.toDisplayTensor{
-   input=new_imgs, padding=3, nrow=32, saturate=false
-}
+-- input = image.toDisplayTensor{
+--    input=new_imgs, padding=3, nrow=32, saturate=false
+-- }
 
-torch.save('todraw.t7', input)
+-- torch.save('todraw.t7', input)
 
 
 -- print(training_data["X"])
