@@ -91,6 +91,7 @@ function DoAll(opt)
     combined = TrainModels(model_optim_critList, opt, trainData, Train, folds, logpackages)
   end
   --Test the data
+  print (trainData.size)
   if opt.trteb ~= 1 then LoadAndTest(opt, testData, 'combined_model.net', opt.kaggle) end
  return model_optim_critList
 end
