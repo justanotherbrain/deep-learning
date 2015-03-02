@@ -125,7 +125,6 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
   shuffle = torch.randperm(indicies:size(1))
   local parameters,gradParameters = model:getParameters()
   for t = 1,indicies:size(1),opt.batchSize do
-    xlua.progress(t, indicies:size(1))
     -- create mini batch
     local inputs = {}
     local targets = {}
