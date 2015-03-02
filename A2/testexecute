@@ -5,9 +5,10 @@
 
 module purge
 module load cuda/6.5.12
-
+RESULTS=results
 TORCHDIR=/scratch/courses/DSGA1008/bin
 export PATH=$PATH:$TORCHDIR
-th doall.lua -type cuda -trteb 2 -size full -kaggle kaggle.csv
-sed -i 's/\([0-9][0-9]*\),\([0-9][0-9]*\)/\1 , \2/' kaggle.csv
+cd $HERE
+th doall.lua -type cuda -trteb 2 -size full -kaggle kaggle.csv -save $RESULTS
+sed -i 's/\([0-9][0-9]*\),\([0-9][0-9]*\)/\1 , \2/' $RESULTS/kaggle.csv
 
