@@ -17,19 +17,19 @@ require 'torch'
 require 'image'
 require 'xlua'
 require 'math'
+require 'lfs'
 
 
 function generate_samples( input, commitee_count, real_seeds_count, faux_samples_count, patch_size )
 	
-	--
 	-- this is to generate a set of aumented data
 	-- commitee_count: number of disjoint sets of samples are used for aumentation
 	-- real_seeds_count: number of random real images used to generate the new ones
 	-- samples_count: number of faux samples to be generated from each real one 
-	--
+	
 	-- note that real_seeds_count * commitee_count cannot exceed the input size, since we are subtractively sampling
-	--
-
+	
+	lfs.mkdir("SurrogateData")
 
 	commitee_count = commitee_count or 2
 	real_seeds_count = real_seeds_count or 10
@@ -38,7 +38,7 @@ function generate_samples( input, commitee_count, real_seeds_count, faux_samples
 	faux_samples_count = faux_samples_count or 64
 	progress = 0
 
-
+    
 	for i=1,commitee_count do
 	 	local to_augment = torch.Tensor(real_seeds_count, input:size()[2], 96, 96)
 	 	local labels = torch.Tensor(real_seeds_count * faux_samples_count)
@@ -57,13 +57,12 @@ end
 function apply_trans( imgs ,patch_size , samples_count, transforms )
 
 	-- conveinience method for using this packages tools  
-	-- successively apply transforms to each image.     
+	-- successively apply transforms to each image, default order is specified below     
 
 	transforms = transforms or {flip_transform, rotate_transform, translate_transform, scale_transform, get_inset, color_transform}
 	patch_size = patch_size or 36 
 	samples_count = samples_count or 64
 	
-	-- only for visualization
 	new_imgs = torch.Tensor(samples_count * imgs:size()[1], imgs:size()[2], patch_size, patch_size)
 	for i = 1, imgs:size()[1] do
 		xlua.progress(i, imgs:size()[1])	
