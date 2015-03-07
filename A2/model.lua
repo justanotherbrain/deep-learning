@@ -21,7 +21,8 @@ layersToRemove = 0, addSoftMax = false
 }
 print '==> define parameters'
 
-function ModelOptimCrit(parameters, opt)
+--Create a model, an optimizer, and a criterion
+function ModelOptimCrit(parameters)
  local noutputs = parameters.noutputs
  local nfeats = parameters.nfeats
  local width = parameters.width
@@ -34,14 +35,14 @@ function ModelOptimCrit(parameters, opt)
 
 -- number of hidden units (for MLP only):
 nhiddens = ninputs / 2
-if opt.model == 'linear' then
+if parameters.model == 'linear' then
 
    -- Simple linear model
    model = nn.Sequential()
    model:add(nn.Reshape(ninputs))
    model:add(nn.Linear(ninputs,noutputs))
 
-elseif opt.model == 'mlp' then
+elseif parameters.model == 'mlp' then
 
    -- Simple 2-layer neural network, with tanh hidden units
    model = nn.Sequential()
@@ -50,8 +51,8 @@ elseif opt.model == 'mlp' then
    model:add(nn.Tanh())
    model:add(nn.Linear(nhiddens,noutputs))
 
-elseif opt.model == 'convnet' then
-   if opt.type == 'cuda' then
+elseif parameters.model == 'convnet' then
+   if parameters.type == 'cuda' then
       -- a typical modern convolution network (conv+relu+pool)
       model = nn.Sequential()
 
@@ -108,9 +109,8 @@ elseif opt.model == 'convnet' then
 else
    error('unknown -model')
 end
-if opt.loss == 'nll' then model:add(nn.LogSoftMax()) end
-if opt.type == 'cuda' then model:cuda() end
-ret = OptimizerAndCriterion(opt)
+if parameters.loss == 'nll' or parameters.loss == 'dkld' then model:add(nn.LogSoftMax()) end
+ret = OptimizerAndCriterion(parameters)
 ret.model = model
 return ret
 end
@@ -118,8 +118,16 @@ end
 function Train(model_optim_crit, trainData, opt, confusion, indicies)
   local optimMethod = model_optim_crit.optimMethod
   local optimState = model_optim_crit.optimState
-  local criterion = model_optim_crit.criterion
-  local model = model_optim_crit.model
+  local criterion
+  local model
+  if opt.tye == 'cuda' then    
+    criterion = model_optim_crit.criterion:cuda()
+    model = model_optim_crit.model:cuda()
+  else
+    criterion = model_optim_crit.criterion:double()
+    model = model_optim_crit.model:double()
+  end
+  
   ret = {err=0}
   model:training()
   shuffle = torch.randperm(indicies:size(1))
@@ -182,47 +190,56 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
        optimMethod(feval, parameters, optimState)
     end   
  end
+  if opt.type == 'cuda' then
+    criterion = model_optim_crit.criterion:double()
+    model = model_optim_crit.model:double()
+  end
  ret.err = ret.err/indicies:size(1)
  return ret
 end
 
-function OptimizerAndCriterion(opt)
+function OptimizerAndCriterion(parameters)
   --This only considers nll criterion as of now...so shoot me
-  if opt.optimization == 'CG' then
+  if parameters.optimization == 'CG' then
    optimState = {
-      maxIter = opt.maxIter
+      maxIter = parameters.maxIter
    }
    optimMethod = optim.cg
 
-  elseif opt.optimization == 'LBFGS' then
+  elseif parameters.optimization == 'LBFGS' then
      optimState = {
-        learningRate = opt.learningRate,
-        maxIter = opt.maxIter,
+        learningRate = parameters.learningRate,
+        maxIter = parameters.maxIter,
         nCorrection = 10
      }
      optimMethod = optim.lbfgs
 
-  elseif opt.optimization == 'SGD' then
+  elseif parameters.optimization == 'SGD' then
      optimState = {
-        learningRate = opt.learningRate,
-        weightDecay = opt.weightDecay,
-        momentum = opt.momentum,
+        learningRate = parameters.learningRate,
+        weightDecay = parameters.weightDecay,
+        momentum = parameters.momentum,
         learningRateDecay = 1e-7
      }
      optimMethod = optim.sgd
 
-  elseif opt.optimization == 'ASGD' then
+  elseif parameters.optimization == 'ASGD' then
      optimState = {
-        eta0 = opt.learningRate,
-        t0 = trsize * opt.t0
+        eta0 = parameters.learningRate,
+        t0 = trsize * parameters.t0
      }
      optimMethod = optim.asgd
 
   else
      error('unknown optimization method')
   end
-  if opt.loss == 'nll' then criterion = nn.ClassNLLCriterion() else error('nll only so far') end
-  if opt.type == 'cuda' then criterion:cuda() end
+  if parameters.loss == 'nll' then 
+    criterion = nn.ClassNLLCriterion()
+  elseif parameters.loss == 'dkld' then
+    criterion = nn.DistKLDivCriterion()
+  else 
+    error('nll/dkld only so far') 
+  end
   return {optimState=optimState, optimMethod=optimMethod, criterion=criterion} 
 end
 function CreateLogPackages(opt, parameters, numFolds)
@@ -279,6 +296,6 @@ function LogParameters(opt, parameters)
   paramLogger = optim.Logger(paths.concat(opt.save, 'params.log'))
 
 
-  paramLogger:add{['maxIter'] = opt.maxIter, ['momentum'] = opt.momentum,
-   ['weightDecay'] = opt.weightDecay, ['model'] = opt.model, ['optimization'] = opt.optimization, ['learningRate'] = opt.learningRate, ['loss'] = opt.loss, ['batchSize'] = opt.batchSize}
+  paramLogger:add{['maxIter'] = parameters.maxIter, ['momentum'] = parameters.momentum,
+   ['weightDecay'] = parameters.weightDecay, ['model'] = parameters.model, ['optimization'] = parameters.optimization, ['learningRate'] = parameters.learningRate, ['loss'] = parameters.loss, ['batchSize'] = parameters.batchSize}
 end

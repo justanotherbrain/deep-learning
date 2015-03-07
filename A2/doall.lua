@@ -84,6 +84,7 @@ function DoAll(opt)
   end
   if opt.trteb ~= 2 then
     --Create models
+    append(opt, parameters)
     model_optim_critList = CreateModels(opt, parameters, ModelOptimCrit)
     --Create LogPackages
     logpackages = CreateLogPackages(opt, parameters, opt.folds)

@@ -37,7 +37,7 @@ function ReadFiles(opt)
   --testd = testd:transpose(3, 4)
 
   if not opt or opt.size == 'debug' then
-    trsize = 20
+    trsize = 2
     tesize = 2
     print '==>Debugging, using ultra reduced dataset'
   else

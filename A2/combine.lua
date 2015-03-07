@@ -39,11 +39,11 @@ function CreateModels(opt, parameters, modelGen, model_optim_critList)
     if model_optim_critList == nil then
       model_optim_critList = {}
       for i = 1,opt.models do
-        table.insert(model_optim_critList, modelGen(parameterList[i], opt))
+        table.insert(model_optim_critList, modelGen(parameterList[i]))
       end
-    else
+    else--If not empty, modelGen is of form modelGen(parameters, modelToAugment)
       for i = 1,opt.models do
-        table.insert(model_optim_critList, modelGen(parameterList[i], opt, model_optim_critList[i]))
+        table.insert(model_optim_critList, modelGen(parameterList[i], model_optim_critList[i]))
       end
     end
     return model_optim_critList
@@ -78,7 +78,7 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
     table.insert(modelResults, {bestPercentError=1.1, epochsLeft=opt.maxEpoch, finished= false, model=nil}) 
   end
   local trainLoop = 
-    function(foldIndex) 
+    function(foldIndex)         
       print('===>Training')
       if logpackages ~= nil then logpackage = logpackages[foldIndex] end
       --Get inidices
