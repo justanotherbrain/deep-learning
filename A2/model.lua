@@ -120,7 +120,7 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
   local optimState = model_optim_crit.optimState
   local criterion
   local model
-  if opt.tye == 'cuda' then    
+  if opt.type == 'cuda' then    
     criterion = model_optim_crit.criterion:cuda()
     model = model_optim_crit.model:cuda()
   else
