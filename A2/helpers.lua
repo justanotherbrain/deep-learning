@@ -124,7 +124,7 @@ function append(from, to)
     to[key] = value
   end
 end
-function mysplit(inputstr, sep)
+function stringSplit(inputstr, sep)
         if sep == nil then
                 sep = "%s"
         end

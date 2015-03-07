@@ -3,10 +3,6 @@ print '==> processing options'
 
 -- current session's storage directory
 dir_name = os.date():gsub(' ','_') .. ''
-function ChangeParameters(parameters)
-  parameters[1].loss = 'mmc'
-  parameters[2].loss = 'nll'
-end
 
 function ParseCommandline()
     
@@ -23,7 +19,7 @@ function ParseCommandline()
   -- model:
   cmd:option('-model', 'convnet', 'type of model to construct: linear | mlp | convnet')
   -- loss:
-  cmd:option('-loss', 'nll', 'type of loss function to minimize: nll | mse | margin | mmc ')
+  cmd:option('-loss', 'nll', 'type of loss function to minimize: nll | mse | margin | mmc. To train multiple models with different criterion as follows: nll/nll/mmc/mse...etc')
 
   -- training:
   -- opt.save is where everything is saved
@@ -93,9 +89,18 @@ function DoAll(opt)
         table.insert(parameters, copy)
       end
     end
-    ChangeParameters(parameters)
+    parseLoss = stringSplit(opt.loss, '/')
+    if #parseLoss > 1 then
+      if #parseLoss ~= opt.models then
+        print 'INCORRECT NUMBER OF CRITERIA SELECTED'
+        return 
+      end
+      for i = 1,#parseLoss do
+        parameters[i].loss = parseLoss[i]
+      end
+    end
+
     model_optim_critList = CreateModels(opt, parameters, ModelOptimCrit)
-    print (model_optim_critList)
     --Create LogPackages
     logpackages = CreateLogPackages(opt, parameters, opt.folds)
     --Train and combine models
