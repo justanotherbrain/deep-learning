@@ -3,6 +3,10 @@ print '==> processing options'
 
 -- current session's storage directory
 dir_name = os.date():gsub(' ','_') .. ''
+function ChangeParameters(parameters)
+  parameters[1].loss = 'mmc'
+  parameters[2].loss = 'nll'
+end
 
 function ParseCommandline()
     
@@ -19,7 +23,7 @@ function ParseCommandline()
   -- model:
   cmd:option('-model', 'convnet', 'type of model to construct: linear | mlp | convnet')
   -- loss:
-  cmd:option('-loss', 'nll', 'type of loss function to minimize: nll | mse | margin')
+  cmd:option('-loss', 'nll', 'type of loss function to minimize: nll | mse | margin | mmc ')
 
   -- training:
   -- opt.save is where everything is saved
@@ -36,7 +40,7 @@ function ParseCommandline()
   cmd:option('-t0', 1, 'start averaging at t0 (ASGD only), in nb of epochs')
   cmd:option('-maxIter', 2, 'maximum nb of iterations for CG and LBFGS')
   cmd:option('-type', 'double', 'type: double | float | cuda')
-  cmd:option('-models', 1, 'number of models to train')
+  cmd:option('-models', 2, 'number of models to train')
   cmd:option('-maxEpoch', 4, 'number of epochs to train for without seeing the best guess improve')
   cmd:option('-angle', math.pi/18, 'angle to rotate the training images')
   cmd:option('-hflip', 1, 'reflect training images? 1|0')
@@ -63,16 +67,12 @@ function ParseCommandline()
 end
 
 function DoAll(opt)
-  if false then 
-    testData = torch.load('testData.t7')
-    trainData = torch.load('trainData.t7')
-  else
-    print('\n=>Loading data')
-    dofile 'data.lua'  
-    trainData, testData = ReadFiles(opt)
-    TransformImages(trainData, opt)
-    Preprocess(trainData, testData, opt)
-  end
+
+  print('\n=>Loading data')
+  dofile 'data.lua'  
+  trainData, testData = ReadFiles(opt)
+  TransformImages(trainData, opt)
+  Preprocess(trainData, testData, opt)
   print('\n=>Loading needed files')
   dofile 'model.lua'
   dofile 'combine.lua'
@@ -85,15 +85,27 @@ function DoAll(opt)
   if opt.trteb ~= 2 then
     --Create models
     append(opt, parameters)
+    if opt.models > 1 then
+      local temp = parameters
+      parameters = {noutputs=parameters.noutputs}
+      for i = 1,opt.models do
+        local copy = shallowcopy(temp)
+        table.insert(parameters, copy)
+      end
+    end
+    ChangeParameters(parameters)
     model_optim_critList = CreateModels(opt, parameters, ModelOptimCrit)
+    print (model_optim_critList)
     --Create LogPackages
     logpackages = CreateLogPackages(opt, parameters, opt.folds)
     --Train and combine models
     combined = TrainModels(model_optim_critList, opt, trainData, Train, folds, logpackages)
   end
   --Test the data
-  print (trainData.size)
-  if opt.trteb ~= 1 then LoadAndTest(opt, testData, 'combined_model.net', opt.kaggle) end
+  if opt.trteb ~= 1 then 
+    opt.noutputs = parameters.noutputs
+    LoadAndTest(opt, testData,'combined_model.net', opt.kaggle) 
+  end
  return model_optim_critList
 end
 print('=> Parsing command line')

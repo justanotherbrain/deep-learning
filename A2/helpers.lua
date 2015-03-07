@@ -1,4 +1,5 @@
 require 'torch'
+require 'nn'
 function RemoveLastLayers(model, n)
   --This assumes we're using nn.Sequential as out base...fix it if you want
   if n == 0 then return model end
@@ -8,35 +9,35 @@ function RemoveLastLayers(model, n)
   end
   return ret
 end
-function CreateFolds(numModels, numSamples)
+function CreateFolds(numFolds, numSamples)
   local folds = torch.randperm(numSamples)
   ret = {}
-  if numModels < 1 then
+  if numFolds < 1 then
     --If < 1, treat this number as percent used for training
-    local numTraining = math.floor(numModels * numSamples)
+    local numTraining = math.floor(numFolds * numSamples)
     table.insert(ret,{
         training=folds[{{1,numTraining}}], 
         validation=folds[{{numTraining+1,-1}}]})
     print ('===>Splitting data into ' .. numTraining .. ' training samples and ' .. numSamples-numTraining .. ' validation samples.')
-  elseif numModels == 1 then
+  elseif numFolds == 1 then
     table.insert(ret,{training=folds})
     print ('===>Training on all test data-no validation set.')
   else
-    local n = math.floor(numSamples/numModels)
-    for i = 1,numModels do
+    local n = math.floor(numSamples/numFolds)
+    for i = 1,numFolds do
       local training
       local validation = 
       folds[{{(i-1)* n + 1, i * n}}]
       if i == 1 then
         training = folds[{{i * n + 1, -1}}]
-      elseif i == numModels then
+      elseif i == numFolds then
         training = folds[{{1, (i-1) * n}}]
       else
         training = torch.cat(folds[{{1, (i-1) * n}}], folds[{{i* n + 1, -1}}])
       end
       table.insert(ret, {training=training, validation= validation})
     end
-      print ('==>Creating '.. numModels..' folds each with '.. n ..' training samples')
+      print ('==>Creating '.. numFolds..' folds each with '.. n ..' training samples')
   end
   --To make this clean, ignore the last #samples % #models samples
   return ret
@@ -72,7 +73,8 @@ function Test(model, testData, opt, confusion, indicies, kagglecsv)--add paramet
       
       local pred = model:forward(input)
       _, guess  = torch.max(pred,1)
-      if  confusion ~= nil then confusion:add(pred, target) end
+      --This is so ugly to properly handle ensemble learner output. For an ensemble, we take the highest output score from any model to be the "most sure" value, and select that as our answer.
+      if  confusion ~= nil then confusion:add((guess[1] -1) % opt.noutputs + 1, target) end
       err = err + ((guess[1] ~= target) and 1 or 0)
       table.insert(ret, {indicies[t], guess[1]})
    end
@@ -120,5 +122,25 @@ end
 function append(from, to)
   for key, value in pairs(from) do
     to[key] = value
+  end
+end
+function mysplit(inputstr, sep)
+        if sep == nil then
+                sep = "%s"
+        end
+        local t={} ; i=1
+        for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+                t[i] = str
+                i = i + 1
+        end
+        return t
+end
+function AddLSMtoConcatChildren(model)
+  numModules = #model.modules
+  for i = 1,numModules do
+    numSubModules = #model.modules[i].modules
+    if tostring(model.modules[i].modules[numSubModules]) ~= 'nn.LogSoftMax' then
+      model.modules[i]:add(nn.LogSoftMax())
+    end
   end
 end

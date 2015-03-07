@@ -191,8 +191,8 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
     end   
  end
   if opt.type == 'cuda' then
-    criterion = model_optim_crit.criterion:double()
-    model = model_optim_crit.model:double()
+    criterion = model_optim_crit.criterion:float()
+    model = model_optim_crit.model:float()
   end
  ret.err = ret.err/indicies:size(1)
  return ret
@@ -237,21 +237,22 @@ function OptimizerAndCriterion(parameters)
     criterion = nn.ClassNLLCriterion()
   elseif parameters.loss == 'dkld' then
     criterion = nn.DistKLDivCriterion()
+  elseif parameters.loss == 'mmc' then
+    criterion = nn.MultiMarginCriterion(2)
   else 
-    error('nll/dkld only so far') 
+    error('nll/dkld/mmc only so far') 
   end
   return {optimState=optimState, optimMethod=optimMethod, criterion=criterion} 
 end
 function CreateLogPackages(opt, parameters, numFolds)
-  local noutputs = parameters.noutputs
   ret = {}
   for i = 1,opt.models do
     ret[i] = {}
     if numFolds ~= 1 then 
-      ret[i].testConfusion = optim.ConfusionMatrix(noutputs) 
+      ret[i].testConfusion = optim.ConfusionMatrix(parameters[i].noutputs) 
       ret[i].testLogger = optim.Logger(paths.concat(opt.save, 'test' .. i .. '.log')) 
     end
-    ret[i].trainConfusion = optim.ConfusionMatrix(noutputs)
+    ret[i].trainConfusion = optim.ConfusionMatrix(parameters[i].noutputs)
     ret[i].trainLogger = optim.Logger(paths.concat(opt.save, 'train' .. i .. '.log'))
     ret[i].log = 
     function(self)
