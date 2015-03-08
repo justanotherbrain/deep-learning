@@ -7,24 +7,6 @@ dofile 'helpers.lua'
 --all models use the same optimState 
 --all models are of the same type, and differ by the parameters, or transformations to the data
   
---TODO:
---Move X,y for functions into trainData struct again-done
---Re-implement trainData:size()-done
---In model, add ModifyModel (and ModifyCombinedModel?), make them both generic, appending simply to a generic model?
---Add global option for maximum number of epochs to use ever
---Move model, test_train, and OptimAndCriterion to one file
---have CreateModel() output {model=model, criterion=criterion}-done and more
---add LoadOptions(file)
-
---Semi-supervised pseudocode:
-  --combined = TrainAndCompact(data)
-  --Switch out old model and old test/train (and old criterion?)
-  --LoadOptions()
-  --ModifyCombinedModel(combined)
-  --TrainAndCompact(data, combined)
-  --Finally test on data
-
-
 function CreateModels(opt, parameters, modelGen, model_optim_critList)
   --Setup
     parameterList = {}
@@ -145,7 +127,8 @@ function TrainModels(model_optim_critList, opt, trainData, trainFun, folds, logp
   local conc
   --Loop until all models converge
   print('===>Training ' .. #model_optim_critList .. ' models.')
-  while numberConverged ~= #model_optim_critList do
+  local time = os.time()
+  while numberConverged ~= #model_optim_critList and os.difftime(os.time(), time) < opt.maxtime * 60  do
     foldIndex = (foldIndex % #model_optim_critList) + 1
     print('\n===>Training model ' .. foldIndex .. ' epoch: ' .. math.ceil(epoch/opt.models).. '\n')
     numberConverged = numberConverged + trainLoop(foldIndex)

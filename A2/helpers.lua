@@ -49,7 +49,6 @@ function LogModel(filename, model)
    torch.save(filename, model)
 end
 function Test(model, testData, opt, confusion, indicies, kagglecsv)--add parameters
-  local criterion
   if opt.type == 'cuda' then
     model = model:cuda()
   elseif opt.type == 'double' then

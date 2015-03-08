@@ -43,6 +43,7 @@ function ParseCommandline()
   cmd:option('-folds', 1, 'input to CreateFolds. <=1 for one model, otherwise, should equal #models')
   cmd:option('-trteb', 3, 'train test or both 1=train,2=test,3=both')
   cmd:option('-kaggle','kaggle.csv','where to save to')
+  cmd:option('-maxtime', 55, 'maximum number of minutes to spend on training')
   cmd:text()
     --DG addition
   opt = cmd:parse(arg or {})

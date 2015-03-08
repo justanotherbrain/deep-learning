@@ -130,13 +130,14 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
   
   ret = {err=0}
   model:training()
-  shuffle = torch.randperm(indicies:size(1))
+  local maxsample = indicies:size(1)
+  shuffle = torch.randperm(maxsample)
   local parameters,gradParameters = model:getParameters()
-  for t = 1,indicies:size(1),opt.batchSize do
+  for t = 1,maxsample,opt.batchSize do
     -- create mini batch
     local inputs = {}
     local targets = {}
-    for i = t,math.min(t+opt.batchSize-1,indicies:size(1)) do
+    for i = t,math.min(t+opt.batchSize-1,maxsample) do
        -- load new sample
        local input = trainData.X[indicies[shuffle[i]]]
        local target = trainData.y[indicies[shuffle[i]]]
@@ -187,12 +188,12 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
     local _, guess  = torch.max(model.output,1)
     if confusion ~= nil then confusion:add(model.output, targets[1][1]) end
     ret.err = ret.err + ((guess[1] ~= targets[1][1]) and 1 or 0)
- end
-  if opt.type == 'cuda' or opt.type == 'float' then
-    criterion = model_optim_crit.criterion:float()
-    model = model_optim_crit.model:float()
   end
- ret.err = ret.err/indicies:size(1)
+  if opt.type == 'cuda' or opt.type == 'float' then
+    criterion = criterion:float()
+    model = model:float()
+  end
+ ret.err = ret.err/maxsample
  return ret
 end
 
