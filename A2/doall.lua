@@ -28,7 +28,7 @@ function ParseCommandline()
   -- training:
   cmd:option('-save', 'results', 'subdirectory to save/log experiments in')
   cmd:option('-plot', false, 'live plot')
-  cmd:option('-optimization', 'SGD', 'optimization method: SGD | ASGD | CG | LBFGS')
+  cmd:option('-optimization', 'SGD', 'optimization method: SGD | ASGD | CG | LBFGS. To train multiple models with different optimizers as follows: SGD/SGD/LBFGS...etc')
   cmd:option('-learningRate', 1e-3, 'learning rate at t=0')
   cmd:option('-batchSize', 1, 'mini-batch size (1 = pure stochastic)')
   cmd:option('-weightDecay', 0, 'weight decay (SGD only)')
@@ -62,6 +62,40 @@ function ParseCommandline()
 
 end
 
+function OptToParameters(opt, parameters)
+  append(opt, parameters)
+  if opt.models > 1 then
+    local temp = parameters
+    parameters = {noutputs=parameters.noutputs}
+    for i = 1,opt.models do
+      local copy = shallowcopy(temp)
+      table.insert(parameters, copy)
+    end
+  end
+  local parseLoss = stringSplit(opt.loss, '/')
+  if #parseLoss > 1 then
+    if #parseLoss ~= opt.models then
+      print 'INCORRECT NUMBER OF CRITERIA SELECTED'
+      return 
+    end
+    for i = 1,#parseLoss do
+      parameters[i].loss = parseLoss[i]
+    end
+  end
+  local parseOptimizers = stringSplit(opt.optimization, '/')
+  if #parseOptimizers > 1 then
+    if #parseOptimizers ~= opt.models then
+      print 'INCORRECT NUMBER OF OPTIMIZERS SELECTED'
+      return 
+    end
+    for i = 1,#parseOptimizers do
+      parameters[i].optimization = parseOptimizers[i]
+    end
+  end
+  return parameters
+end
+
+
 function DoAll(opt)
 
   print('\n=>Loading data')
@@ -72,7 +106,10 @@ function DoAll(opt)
   print('\n=>Loading needed files')
   dofile 'model.lua'
   dofile 'combine.lua'
-
+  if opt.batchSize ~= 1 then
+    print 'ONLY BATCHSIZE 1 CURRENTLY SUPPORTED. NEED TO MODIFY FEVAL AND RELATED CODE TO SUPPORT GREATER BATCH SIZES'
+    return
+  end
   if opt.size ~= 'debug' and trainData.fold_indices ~= nil then 
     folds = trainData.fold_indices 
   else 
@@ -80,26 +117,7 @@ function DoAll(opt)
   end
   if opt.trteb ~= 2 then
     --Create models
-    append(opt, parameters)
-    if opt.models > 1 then
-      local temp = parameters
-      parameters = {noutputs=parameters.noutputs}
-      for i = 1,opt.models do
-        local copy = shallowcopy(temp)
-        table.insert(parameters, copy)
-      end
-    end
-    parseLoss = stringSplit(opt.loss, '/')
-    if #parseLoss > 1 then
-      if #parseLoss ~= opt.models then
-        print 'INCORRECT NUMBER OF CRITERIA SELECTED'
-        return 
-      end
-      for i = 1,#parseLoss do
-        parameters[i].loss = parseLoss[i]
-      end
-    end
-
+    parameters = OptToParameters(opt, parameters)
     model_optim_critList = CreateModels(opt, parameters, ModelOptimCrit)
     --Create LogPackages
     logpackages = CreateLogPackages(opt, parameters, opt.folds)

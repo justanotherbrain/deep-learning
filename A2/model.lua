@@ -145,7 +145,6 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
        table.insert(inputs, {input, indicies[i]})--DG change, Inputs is now an array of tuples
        table.insert(targets, target)
     end
-
     -- create closure to evaluate f(X) and df/dX
     local feval = function(x)
                      -- get new parameters
@@ -169,11 +168,6 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
                         -- estimate df/dW
                         local df_do = criterion:backward(output, targets[i][1])
                         model:backward(inputs[i][1], df_do)
-                        
-                        -- log if samples are wrong. DG addition
-                        local _, guess  = torch.max(output,1)
-                        if confusion ~= nil then confusion:add(output, targets[i][1]) end
-                        ret.err = ret.err + ((guess[1] ~= targets[i][1]) and 1 or 0)
                      end
                      -- normalize gradients and f(X)
                      gradParameters:div(#inputs)
@@ -189,6 +183,10 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
     else
        optimMethod(feval, parameters, optimState)
     end   
+    -- log if samples are wrong. DG addition
+    local _, guess  = torch.max(model.output,1)
+    if confusion ~= nil then confusion:add(model.output, targets[1][1]) end
+    ret.err = ret.err + ((guess[1] ~= targets[1][1]) and 1 or 0)
  end
   if opt.type == 'cuda' or opt.type == 'float' then
     criterion = model_optim_crit.criterion:float()
