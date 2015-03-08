@@ -9,6 +9,7 @@ RESULTS=results
 TORCHDIR=/scratch/courses/DSGA1008/bin
 DATADIR=/scratch/courses/DSGA1008/A2/binary
 NAME=NLL_MMC_EXPERIMENT
+RESULTS=results
 export PATH=$PATH:$TORCHDIR
 RUNDIR=$HERE/$NAME-${PBS_JOBID/.*}/stl10_binary
 mkdir -p $RUNDIR
@@ -16,4 +17,6 @@ cd $RUNDIR
 cp -rs $DATADIR/* ./
 cd ..
 cp  $SCRATCH/A2-dev/*.lua ./
-th doall.lua -type cuda -size notdebug -models 2 -loss nll/mmc
+th doall.lua -type cuda -size notdebug -models 2 -loss nll/mmc -save $RESULTS
+sed -i 's/\([0-9][0-9]*\),\([0-9][0-9]*\)/\1 , \2/' $RESULTS/kaggle.csv
+
