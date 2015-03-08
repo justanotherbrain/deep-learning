@@ -52,7 +52,7 @@ function Test(model, testData, opt, confusion, indicies, kagglecsv)--add paramet
   if opt.type == 'cuda' then
     criterion = model_optim_crit.criterion:cuda()
     model = model_optim_crit.model:cuda()
-  else if opt.type == 'double' then
+  elseif opt.type == 'double' then
     criterion = model_optim_crit.criterion:double()
     model = model_optim_crit.model:double()
   end
@@ -91,7 +91,7 @@ function Test(model, testData, opt, confusion, indicies, kagglecsv)--add paramet
    if kagglecsv ~= nil then 
        csvigo.save{data=ret, path=paths.concat(opt.save, kagglecsv)}
    end
-   if opt.type == 'cuda' pr opt.type == 'double' then
+   if opt.type == 'cuda' or opt.type == 'double' then
     criterion = model_optim_crit.criterion:float()
     model = model_optim_crit.model:float()
    end
