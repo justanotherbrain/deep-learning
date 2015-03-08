@@ -10,7 +10,7 @@ TORCHDIR=/scratch/courses/DSGA1008/bin
 DATADIR=/scratch/courses/DSGA1008/A2/binary
 NAME=NLL_MMC_EXPERIMENT
 export PATH=$PATH:$TORCHDIR
-RUNDIR=$SCRATCH/A2-dev/$NAME-${PBS_JOBID/.*}/stl10_binary
+RUNDIR=$HERE/$NAME-${PBS_JOBID/.*}/stl10_binary
 mkdir -p $RUNDIR
 cd $RUNDIR
 cp -rs $DATADIR/* ./
