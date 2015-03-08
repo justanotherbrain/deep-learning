@@ -89,7 +89,7 @@ function Test(model, testData, opt, confusion, indicies, kagglecsv)--add paramet
    err = err / indicies:size(1)
    if kagglecsv ~= nil then 
        csvigo.save{data=ret, path=paths.concat(opt.save, kagglecsv)}
-       os.execute('sed -i \'s/\([0-9][0-9]*\),\([0-9][0-9]*\)/\1 , \2/\' '.. paths.concat(opt.save, kagglecsv))
+       os.execute('sed -i \'s/\\([0-9][0-9]*\\),\\([0-9][0-9]*\\)/\\1 , \\2/\' '.. paths.concat(opt.save, kagglecsv))
    end
    if opt.type == 'cuda' or opt.type == 'double' then
     model = model:float()
