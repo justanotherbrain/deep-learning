@@ -52,7 +52,7 @@ function Test(model, testData, opt, confusion, indicies, kagglecsv)--add paramet
   if opt.type == 'cuda' then
     criterion = model_optim_crit.criterion:cuda()
     model = model_optim_crit.model:cuda()
-  else if opt.type == 'double'
+  else if opt.type == 'double' then
     criterion = model_optim_crit.criterion:double()
     model = model_optim_crit.model:double()
   end
