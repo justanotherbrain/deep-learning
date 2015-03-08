@@ -1,16 +1,19 @@
 #!/bin/bash
 #PBS -l nodes=1:ppn=1:gpus=1:titan
-#PBS -l walltime=00:30:00
+#PBS -l walltime=01:00:00
 #PBS -l mem=18GB
 
 module purge
 module load cuda/6.5.12
 RESULTS=results
 TORCHDIR=/scratch/courses/DSGA1008/bin
+DATADIR=/scratch/courses/DSGA1008/A2/binary
+NAME=NLL_MMC_EXPERIMENT
 export PATH=$PATH:$TORCHDIR
-RUNDIR=$SCRATCH/A2/$NAME-${PBS_JOBID/.*}
+RUNDIR=$SCRATCH/A2-dev/$NAME-${PBS_JOBID/.*}/stl10_binary
 mkdir -p $RUNDIR
 cd $RUNDIR
-cp -rs $SCRATCH/A2/*.t7 ./
-cp  $SCRATCH/A2/*.lua ./
-th doall.lua -type cuda -size notdebug -save $RESULTS -trted 1
+cp -rs $DATADIR/* ./
+cd ..
+cp  $SCRATCH/A2-dev/*.lua ./
+th doall.lua -type cuda -size notdebug -models 2 -loss nll/mmc

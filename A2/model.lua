@@ -190,7 +190,7 @@ function Train(model_optim_crit, trainData, opt, confusion, indicies)
        optimMethod(feval, parameters, optimState)
     end   
  end
-  if opt.type == 'cuda' then
+  if opt.type == 'cuda' or opt.type == 'float' then
     criterion = model_optim_crit.criterion:float()
     model = model_optim_crit.model:float()
   end

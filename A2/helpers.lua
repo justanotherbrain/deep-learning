@@ -48,6 +48,15 @@ function LogModel(filename, model)
    torch.save(filename, model)
 end
 function Test(model, testData, opt, confusion, indicies, kagglecsv)--add parameters
+  local criterion
+  if opt.type == 'cuda' then
+    criterion = model_optim_crit.criterion:cuda()
+    model = model_optim_crit.model:cuda()
+  else if opt.type == 'double'
+    criterion = model_optim_crit.criterion:double()
+    model = model_optim_crit.model:double()
+  end
+
   model:evaluate()
   ret = {}
   if kagglecsv ~= nil then
@@ -81,6 +90,10 @@ function Test(model, testData, opt, confusion, indicies, kagglecsv)--add paramet
    err = err / indicies:size(1)
    if kagglecsv ~= nil then 
        csvigo.save{data=ret, path=paths.concat(opt.save, kagglecsv)}
+   end
+   if opt.type == 'cuda' pr opt.type == 'double' then
+    criterion = model_optim_crit.criterion:float()
+    model = model_optim_crit.model:float()
    end
    ret.err = err
   return ret
