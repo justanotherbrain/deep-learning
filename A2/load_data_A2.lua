@@ -4,10 +4,14 @@ require 'image'
 require 'xlua'
 require 'augment'
 require 'math'
+require 'sys'
 
 local matio = require 'matio'
 
-data_directory = '/Users/sam.royston/Downloads/stl10_binary/'
+if argv[1] == 'remote' do:
+	data_directory = '/Users/sam.royston/Downloads/stl10_binary/'
+else:
+	data_directory = '../stl10_binary/'
 
 train_file = 'train_X.bin'
 train_labels_file = 'train_y.bin'
@@ -60,7 +64,7 @@ unlabeled_data_fd:readByte(unlabeled_data:storage())
 
 -- Because data is in column-major, transposing the last 2 dimensions gives result that can be correctly visualized
 unlabeled_data = unlabeled_data:transpose(3, 4)
-test_data = test_data:transpose(3,4)
+-- test_data = test_data:transpose(3,4)
 
 -- print('==> loading data from ' .. data_directory .. test_file)
 -- test_data = matio.load(data_directory .. train_file)
