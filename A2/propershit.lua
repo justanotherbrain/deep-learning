@@ -22,7 +22,7 @@ function create_network( classes_count, input_size )
 	height = input_size
 	ninputs = nfeats * width * height
 	
-	filtsize = 3
+	filtsize = 5
 	poolsize = 2
 
 	if opt.type == 'cuda' then
@@ -46,9 +46,9 @@ function create_network( classes_count, input_size )
 	  	model:add(nn.SpatialMaxPooling(poolsize,poolsize,poolsize,poolsize))
 
 	  	-- stage 4 : standard 2-layer neural network
-	  	model:add(nn.View(nstates[3]*(filtsize+4)*(filtsize+4)))
+	  	model:add(nn.View(nstates[3]*(filtsize+1)*(filtsize+1)))
 	  	model:add(nn.Dropout(0.5))
-	  	model:add(nn.Linear(nstates[3]*(filtsize+4)*(filtsize+4), nstates[4]))
+	  	model:add(nn.Linear(nstates[3]*(filtsize+1)*(filtsize+1), nstates[4]))
 	  	model:add(nn.ReLU())
 	  	model:add(nn.Linear(nstates[4], noutputs))
 		model:add(nn.LogSoftMax())
@@ -245,7 +245,7 @@ function test( model, testData )
       local pred = model:forward(input)
       _, guess  = torch.max(pred,1)
       -- print("\n" .. target .. "\n")
-       correct = correct + ((guess[1] == target[1]) and 1 or 0)
+       correct = correct + ((guess[1] == target) and 1 or 0)
    end
    score = correct / (1.0 * testData:size()[1])
    -- timing

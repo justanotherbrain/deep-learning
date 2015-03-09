@@ -11,7 +11,7 @@ opt = {
 	t0 = 1,
 	type = 'cuda',
 	batchSize = 5,
-	save = 'featureEncoder.net'
+	save = 'featureEncoder'
 }
 
 
@@ -41,6 +41,18 @@ surrogateData = {
 	size = function() return loaded:size() end
 }
 
+shuffled_data = torch.Tensor(surrogateData.size()[1],3,36,36)
+shuffled_labels = torch.Tensor(surrogateData.size()[1])
+shuffle = torch.randperm(surrogateData.size()[1])
+for i = 1,shuffle:size()[1] do
+	shuffled_data[i] = surrogateData.data[shuffle[i]]
+	shuffled_labels[i] = surrogateData.labels[shuffle[i]]
+end
+surrogateData = {
+	data = shuffled_data,
+	labels = shuffled_labels,
+	size = function() return loaded:size() end
+}
 
 model,criterion = create_network(8000, surrogateData.size()[4])
 
