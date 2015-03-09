@@ -1,5 +1,6 @@
 require 'csvigo'
 require 'representation'
+require 'augment'
 
 data_directory = 'LearnedFeatures'
 
@@ -20,6 +21,7 @@ function generate_feats( model, test )
 
     features = torch.Tensor(test:size()[1])
     for i=1, test.size()[1] do
+    	resized = get_inset(test[i])
         features[i] = model.forward(test[i])
     end
     return features
