@@ -26,7 +26,7 @@ surrogateData = {
 }
 
 
-model,criterion = create_network(4000, 36)
+model,criterion = create_network(8000, 36)
 
 for i = 1,100 do
 	train_model(model,criterion,surrogateData)

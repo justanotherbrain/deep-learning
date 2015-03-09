@@ -76,7 +76,7 @@ unlabeled_data = unlabeled_data:transpose(3, 4)
 
 
 
-generate_samples(unlabeled_data, 10, 4000, 16)
+generate_samples(unlabeled_data, 10, 8000, 16)
 
 
 
