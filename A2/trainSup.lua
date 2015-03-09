@@ -25,6 +25,18 @@ function generate_feats( model, test )
     return features
 end
 
+function get_feature_model(model, n)
+    
+    -- remove last layers of model
+
+    if n == 0 then return model end
+    ret = nn.Sequential()
+    for i = 1,model:size()-n do
+        ret:add(model:get(i):clone())
+    end
+    return ret
+end 
+
 
 
 training_label_fd = torch.DiskFile(data_directory .. train_labels_file, "r", true)
@@ -60,6 +72,13 @@ valid_y = shuf_labels:sub(4001, 5000)
 
 model = torch.load('featureEncoder.net')
 
+model = get_feature_model(model, 5)
+
+model:add(nn.View(nstates[2]*filtsize*filtsize))
+model:add(nn.Dropout(0.5))
+model:add(nn.Linear(nstates[2]*filtsize*filtsize, nstates[3]))
+model:add(nn.ReLU())
+model:add(nn.Linear(nstates[3], noutputs))
 
 
 

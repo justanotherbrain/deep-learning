@@ -216,28 +216,27 @@ end
 
 function test( model, testData )
    
+  testSampleWrong = {}
+
+   for t = 1,testData:size() do
+     table.insert(testSampleWrong,0)
+   end
    -- local vars
    local time = sys.clock()
 
    -- top score to save corresponding to saved model
    top_score = top_score or 0.1
 
-
    -- local vars
    local time = sys.clock()
-
-   -- averaged param use?
-   if average then
-      cachedparams = parameters:clone()
-      parameters:copy(average)
-   end
 
    -- set model to evaluate mode (for modules that differ in training and testing, like Dropout)
    model:evaluate()
 
    -- test over test data
    print('==> testing on test set:')
-   for t = 1,testData:size() do
+   correct = 0
+   for t = 1,testData:size()[1] do
       -- disp progress
       xlua.progress(t, testData:size())
 
@@ -251,113 +250,28 @@ function test( model, testData )
       local pred = model:forward(input)
       _, guess  = torch.max(pred,1)
       -- print("\n" .. target .. "\n")
-      testSampleWrong[t]= testSampleWrong[t] + ((guess[1] ~= target) and 1 or 0)--DG addition
+       correct = correct + ((guess[1] == target) and 1 or 0)
    end
-
+   score = correct / (1.0 * testData:size()[1])
    -- timing
    time = sys.clock() - time
-   time = time / testData:size()
+   time = time / testData:size()[1]
    print("\n==> time to test 1 sample = " .. (time*1000) .. 'ms')
+   print("score: " .. score)
 
    -- update log/plot ... along with accuracy scores for each digit
 
    -- here we check to see if the current model is the best yet, and if so, save it
-   if top_score < confusion.totalValid * 100 then
+   if top_score < score then
       local top_filename = paths.concat(opt.save, 'winning_model.net')
       os.execute('mkdir -p ' .. sys.dirname(top_filename))
       print('==> saving new top model to '..top_filename)
       torch.save(top_filename, model)
    end
 
-   -- averaged param use?
-   if average then
-      -- restore parameters
-      parameters:copy(cachedparams)
-   end   
-
 end
 
 
-function get_feature_model(model, n)
-    
-    -- return last layers of model
-
-    if n == 0 then return model end
-    ret = nn.Sequential()
-    for i = 1,model:size()-n do
-        ret:add(model:get(i):clone())
-    end
-    return ret
-end 
-
-function test(model, testData)
-   
-   -- local vars
-   local time = sys.clock()
-
-   -- top score to save corresponding to saved model
-   top_score = top_score or 0.1
 
 
-   -- local vars
-   local time = sys.clock()
-
-   -- averaged param use?
-   if average then
-      cachedparams = parameters:clone()
-      parameters:copy(average)
-   end
-
-   -- set model to evaluate mode (for modules that differ in training and testing, like Dropout)
-   model:evaluate()
-
-   -- test over test data
-   print('==> testing on test set:')
-   for t = 1,testData:size() do
-      -- disp progress
-      xlua.progress(t, testData:size())
-
-      -- get new sample
-      local input = testData.data[t]
-      if opt.type == 'double' then input = input:double()
-      elseif opt.type == 'cuda' then input = input:cuda() end
-      local target = testData.labels[t]
-
-      -- test sample
-      local pred = model:forward(input)
-      _, guess  = torch.max(pred,1)
-      -- print("\n" .. target .. "\n")
-      testSampleWrong[t]= testSampleWrong[t] + ((guess[1] ~= target) and 1 or 0)--DG addition
-   end
-
-   -- timing
-   time = sys.clock() - time
-   time = time / testData:size()
-   print("\n==> time to test 1 sample = " .. (time*1000) .. 'ms')
-
-   -- update log/plot ... along with accuracy scores for each digit
-   if opt.plot then
-      testLogger:style{['% mean class accuracy (test set)'] = '-'}
-      testLogger:plot()
-   end
-
-   -- averaged param use?
-   if average then
-      -- restore parameters
-      parameters:copy(cachedparams)
-   end
-   
-   -- DG addition. Print updated list of mislabeled samples every few iterations
-   testWrite = {}
-   for key, value in pairs(testSampleWrong) do
-      table.insert(testWrite, {key,value})
-   end
-      table.insert(testWrite, {'Epoch',#testWrite+1})    
-   table.sort(testWrite, sampleComparer)
-
-   testWrite[1][2] = epoch - 1
-   
-   csvigo.save{path=paths.concat(opt.save, 'test_wrongSamples.log'), data=testWrite}
-   
-end
 
