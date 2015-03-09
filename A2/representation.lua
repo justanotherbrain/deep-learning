@@ -1,3 +1,11 @@
+require 'nn'
+require 'torch'
+require 'cunn'
+require 'math'
+require 'image'
+require 'optim'
+require 'xlua'
+
 
 -- default is 4000 classes per representation model
 
@@ -20,7 +28,7 @@ function create_network( classes_count, input_size )
 
 	if opt.type == 'cuda' then
 
-		n_states = {64,128,256,512}
+		nstates = {64,128,256,512}
 
 		model = nn.Sequential()
 		-- stage 1 : filter bank -> squashing -> L2 pooling -> normalization
@@ -43,8 +51,9 @@ function create_network( classes_count, input_size )
 	  	model:add(nn.Dropout(0.5))
 	  	model:add(nn.Linear(nstates[3]*filtsize*filtsize, nstates[4]))
 	  	model:add(nn.ReLU())
-	  	model:add(nn.Linear(nstates[3], noutputs))
-
+	  	model:add(nn.Linear(nstates[4], noutputs))
+		model:add(nn.LogSoftMax())
+		criterion = nn.ClassNLLCriterion()
 	else
 	  n_states = {64,64,128}
       -- a typical convolutional network, with locally-normalized hidden
@@ -80,10 +89,10 @@ function create_network( classes_count, input_size )
    end
  	print '==> here is the model:'
 	print(model)
-	return model
+	return model,criterion
  end 
 
-function train_model(model, data, labels)
+function train_model(model, criterion, trainData)
 
    -- epoch tracker
    epoch = epoch or 1
@@ -95,7 +104,7 @@ function train_model(model, data, labels)
    model:training()
 
    -- shuffle at each epoch
-   shuffle = torch.randperm(trsize)
+   shuffle = torch.randperm(data:size())
 
    -- do one epoch
    print('==> doing epoch on training data:')
@@ -280,4 +289,6 @@ function test( model, testData )
    -- next iteration:
    confusion:zero()
 end
+
+
 
