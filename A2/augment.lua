@@ -35,7 +35,7 @@ function generate_samples( input, commitee_count, real_seeds_count, faux_samples
 	real_seeds_count = real_seeds_count or 10
 	shuffle_indices = torch.randperm(commitee_count * real_seeds_count)
 	patch_size = patch_size or 36 
-	faux_samples_count = faux_samples_count or 64
+	faux_samples_count = faux_samples_count or 16
 	progress = 0
 
     
