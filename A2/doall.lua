@@ -66,13 +66,11 @@ end
 
 function OptToParameters(opt, parameters)
   append(opt, parameters)
-  if opt.models > 1 then
-    local temp = parameters
-    parameters = {noutputs=parameters.noutputs}
-    for i = 1,opt.models do
-      local copy = shallowcopy(temp)
-      table.insert(parameters, copy)
-    end
+  local temp = parameters
+  parameters = {noutputs=parameters.noutputs}
+  for i = 1,opt.models do
+    local copy = shallowcopy(temp)
+    table.insert(parameters, copy)
   end
   local parseLoss = stringSplit(opt.loss, '/')
   if #parseLoss > 1 then

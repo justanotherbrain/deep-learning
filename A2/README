@@ -1,0 +1,15 @@
+The two execution scripts are designed to be run on HPC. The only things that should be changed if not running on HPC are where torch is located and where the data is located. These can be easily changed in both 'execute' and 'testModel'
+
+TO TRAIN MODEL AND TEST:
+export HERE=$PWD
+./execute
+On HPC
+qsub testModel -v HERE=$PWD
+
+TO TEST MODEL
+export HERE=$PWD
+./testModel
+On HPC:
+qsub testModel -v HERE=$PWD
+
+Note: these scripts must be in the same folder as the .lua files and the model being used (the latter only applies to testModel)
