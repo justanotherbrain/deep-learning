@@ -45,7 +45,9 @@ function generate_samples( input, commitee_count, real_seeds_count, faux_samples
 		for j=1,real_seeds_count do
 			local index = (commitee_count - 1) * real_seeds_count  + j
 			to_augment[index % real_seeds_count + 1] = input[shuffle_indices[index]]
-			labels:sub(index % real_seeds_count + 1, (index % real_seeds_count + 1) + faux_samples_count):fill(index) 
+			if j + 1 <= real_seeds_count then
+				labels:sub((j - 1) * faux_samples_count + 1, j * faux_samples_count):fill(j) 
+			end
 		end
         augmented_data = apply_trans(to_augment, patch_size, faux_samples_count)
         torch.save('SurrogateData/surrogate_traindata_' .. i .. '.t7', augmented_data)
