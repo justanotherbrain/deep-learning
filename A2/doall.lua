@@ -31,7 +31,7 @@ function ParseCommandline()
   cmd:option('-optimization', 'SGD', 'optimization method: SGD | ASGD | CG | LBFGS. To train multiple models with different optimizers as follows: SGD/SGD/LBFGS...etc')
   cmd:option('-learningRate', 1e-3, 'learning rate at t=0')
   cmd:option('-batchSize', 1, 'mini-batch size (1 = pure stochastic)')
-  cmd:option('-weightDecay', 0, 'weight decay (SGD only)')
+  cmd:option('-weightDecay', '0', 'weight decay (SGD only)')
   cmd:option('-momentum', 0, 'momentum (SGD only)')
   cmd:option('-t0', 1, 'start averaging at t0 (ASGD only), in nb of epochs')
   cmd:option('-maxIter', 2, 'maximum nb of iterations for CG and LBFGS')
@@ -42,8 +42,9 @@ function ParseCommandline()
   cmd:option('-hflip', 1, 'reflect training images? 1|0')
   cmd:option('-folds', 1, 'input to CreateFolds. <=1 for one model, otherwise, should equal #models')
   cmd:option('-trteb', 3, 'train test or both 1=train,2=test,3=both')
-  cmd:option('-kaggle','kaggle.csv','where to save to')
+  cmd:option('-kaggle','none','where to save to')
   cmd:option('-maxtime', 55, 'maximum number of minutes to spend on training')
+  cmd:option('-modelName', 'combined_model.net', 'model name for saving or loading')
   cmd:text()
     --DG addition
   opt = cmd:parse(arg or {})
@@ -93,6 +94,16 @@ function OptToParameters(opt, parameters)
       parameters[i].optimization = parseOptimizers[i]
     end
   end
+  local parseDecay = stringSplit(opt.weightDecay, '/')
+  if #parseDecay > 1 then
+    if #parseDecay ~= opt.models then
+      print 'INCORRECT NUMBER OF OPTIMIZERS SELECTED'
+      return 
+    end
+    for i = 1,#parseDecay do
+      parameters[i].weightDecay = parseDecay[i]
+    end
+  end
   return parameters
 end
 
@@ -128,7 +139,7 @@ function DoAll(opt)
   --Test the data
   if opt.trteb ~= 1 then 
     opt.noutputs = parameters.noutputs
-    LoadAndTest(opt, testData,'combined_model.net', opt.kaggle) 
+    LoadAndTest(opt, opt.modelName, testData, opt.kaggle) 
   end
  return model_optim_critList
 end

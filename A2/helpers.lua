@@ -57,7 +57,7 @@ function Test(model, testData, opt, confusion, indicies, kagglecsv)--add paramet
 
   model:evaluate()
   ret = {}
-  if kagglecsv ~= nil then
+  if kagglecsv ~= 'none'  then
       require 'csvigo'
       table.insert(ret, {'Id','Category'})
   end
@@ -86,9 +86,9 @@ function Test(model, testData, opt, confusion, indicies, kagglecsv)--add paramet
       table.insert(ret, {indicies[t], guess[1]})
    end
    err = err / indicies:size(1)
-   if kagglecsv ~= nil then 
-       csvigo.save{data=ret, path=paths.concat(opt.save, kagglecsv)}
-       os.execute('sed -i \'s/\\([0-9][0-9]*\\),\\([0-9][0-9]*\\)/\\1 , \\2/\' '.. paths.concat(opt.save, kagglecsv))
+   if kagglecsv ~= 'none' then 
+       csvigo.save{data=ret, path=kagglecsv}
+       os.execute('sed -i \'s/\\([0-9][0-9]*\\),\\([0-9][0-9]*\\)/\\1 , \\2/\' '.. kagglecsv)
    end
    if opt.type == 'cuda' or opt.type == 'double' then
     model = model:float()
@@ -96,10 +96,10 @@ function Test(model, testData, opt, confusion, indicies, kagglecsv)--add paramet
    ret.err = err
   return ret
 end
-function LoadAndTest(opt, testData, modelName, kagglecsv)
+function LoadAndTest(opt, modelName, testData, kagglecsv)
   require 'nn'
   print ('==>Testing on test data, ' .. testData.size .. ' samples')
-  local model = torch.load(paths.concat(opt.save, modelName))
+  local model = torch.load(modelName)
   local testCM = optim.ConfusionMatrix(parameters.noutputs)
   local testResults = Test(model, testData, opt, testCM, nil, kagglecsv)
   local testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
