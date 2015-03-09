@@ -1,6 +1,10 @@
 require 'csvigo'
 require 'representation'
 require 'augment'
+require 'torch'
+require 'nn'
+require 'cunn'
+require 'xlua'
 
 data_directory = 'LearnedFeatures'
 
@@ -64,6 +68,9 @@ end
 
 
 
+
+
+
 train_x = shuf_data:sub(1 , 4000)
 train_y = shuf_labels:sub(1 , 4000)
 
@@ -72,16 +79,16 @@ valid_y = shuf_labels:sub(4001, 5000)
 
 -- load pre trained model
 
+nstates={64,128,256,512}
+noutputs = 10
+
 model = torch.load('featureEncoder.net')
 
-model = get_feature_model(model, 5)
+model = get_feature_model(model, 2)
 
-model:add(nn.View(nstates[2]*filtsize*filtsize))
-model:add(nn.Dropout(0.5))
-model:add(nn.Linear(nstates[2]*filtsize*filtsize, nstates[3]))
-model:add(nn.ReLU())
-model:add(nn.Linear(nstates[3], noutputs))
-
+model:add(nn.Linear(nstates[4], noutputs))
+model:add(nn.LogSoftMax())
+criterion = nn.ClassNLLCriterion()
 
 
 
@@ -95,3 +102,12 @@ model:add(nn.Linear(nstates[3], noutputs))
 -- 	train:sub(1, (i - 1) * (training_data:size()[1] / folds) + 1):fill()
 -- 	validation = training_data:sub( (i - 1) * (training_data:size()[1] / folds) + 1 ) , i * (training_data:size()[1] / folds))
 -- end
+
+
+
+
+
+
+
+
+
