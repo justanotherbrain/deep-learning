@@ -10,6 +10,5 @@ input = image.toDisplayTensor{
 }
 
 labels = torch.load(data_directory .. "surrogate_labels_1.t7")
-print(labels)
 
- -- image.display(input)
+image.display(input)

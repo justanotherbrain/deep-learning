@@ -137,14 +137,14 @@ function color_transform( img, max_hue_shift, max_sat_shift, max_val_shift )
 	-- applies color tranform to images
 	
 	max_hue_shift = max_hue_shift or 0.1
-	max_sat_shift = max_sat_shift or 0.5
-	max_val_shift = max_val_shift or 0.6
+	max_sat_shift = max_sat_shift or 0.75
+	max_val_shift = max_val_shift or 0.75
 
 	img = image.rgb2hsv(img)
 
 	h =  1.0 + (torch.uniform() - 0.5) * 2 * max_hue_shift
-	s = ((torch.uniform() - 0.5) * 2 * max_sat_shift) + 1
-	v = ((torch.uniform() - 0.5) * 2 * max_val_shift) + 1
+	s = ((torch.uniform() - 0.5) * 2 * max_sat_shift) + 1.25
+	v = ((torch.uniform() - 0.5) * 2 * max_val_shift) + 1.25
 
 
 	hsvimg = torch.Tensor(img:size()[1],img:size()[2],img:size()[3])
