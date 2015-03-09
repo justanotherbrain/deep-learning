@@ -8,7 +8,7 @@ require 'sys'
 
 local matio = require 'matio'
 
-if argv[1] == 'remote' do:
+if argv[1] == 'remote' then do:
 	data_directory = '/Users/sam.royston/Downloads/stl10_binary/'
 else:
 	data_directory = '../stl10_binary/'
