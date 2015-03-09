@@ -7,7 +7,6 @@ require 'optim'
 require 'xlua'
 
 
--- default is 4000 classes per representation model
 
 
 
@@ -17,14 +16,14 @@ function create_network( classes_count, input_size )
 	-- the network generated when cuda is available is a much more complicated architecture
 
 	input_size = input_size or 36
- 	n_outputs = classes_count
-	n_feats = 3
+ 	noutputs = classes_count
+	nfeats = 3
 	width = input_size
 	height = input_size
-	n_inputs = n_feats * width * height
-
-	filter_size = 5
-	pool_size = 2
+	ninputs = nfeats * width * height
+	
+	filtsize = 5
+	poolsize = 2
 
 	if opt.type == 'cuda' then
 
@@ -32,12 +31,12 @@ function create_network( classes_count, input_size )
 
 		model = nn.Sequential()
 		-- stage 1 : filter bank -> squashing -> L2 pooling -> normalization
-	  	model:add(nn.SpatialConvolutionMM(nfeats, nstates[1], filtsize, filtsize))
-	  	model:add(nn.ReLU())
-	  	model:add(nn.SpatialMaxPooling(poolsize,poolsize,poolsize,poolsize))
+	  	--model:add(nn.SpatialConvolutionMM(nfeats, nstates[1], filtsize, filtsize))
+	  	--model:add(nn.ReLU())
+	  	--model:add(nn.SpatialMaxPooling(poolsize,poolsize,poolsize,poolsize))
 
 	  	-- stage 2 : filter bank -> squashing -> L2 pooling -> normalization
-		model:add(nn.SpatialConvolutionMM(nstates[1], nstates[2], filtsize, filtsize))
+		model:add(nn.SpatialConvolutionMM(nfeats, nstates[2], filtsize, filtsize))
 	  	model:add(nn.ReLU())
 	  	model:add(nn.SpatialMaxPooling(poolsize,poolsize,poolsize,poolsize))
 
@@ -47,9 +46,9 @@ function create_network( classes_count, input_size )
 	  	model:add(nn.SpatialMaxPooling(poolsize,poolsize,poolsize,poolsize))
 
 	  	-- stage 4 : standard 2-layer neural network
-	  	model:add(nn.View(nstates[3]*filtsize*filtsize))
+	  	model:add(nn.View(nstates[3]*(filtsize+1)*(filtsize+1)))
 	  	model:add(nn.Dropout(0.5))
-	  	model:add(nn.Linear(nstates[3]*filtsize*filtsize, nstates[4]))
+	  	model:add(nn.Linear(nstates[3]*(filtsize+1)*(filtsize+1), nstates[4]))
 	  	model:add(nn.ReLU())
 	  	model:add(nn.Linear(nstates[4], noutputs))
 		model:add(nn.LogSoftMax())
@@ -93,6 +92,37 @@ function create_network( classes_count, input_size )
  end 
 
 function train_model(model, criterion, trainData)
+   if opt.type == 'cuda' then
+	model:cuda()
+	criterion:cuda()
+   end
+   print '==> configuring optimizer'
+
+   optimState = {
+      learningRate = opt.learningRate,
+      weightDecay = opt.weightDecay,
+      momentum = opt.momentum,
+      learningRateDecay = 1e-7
+   }
+
+   optimMethod = optim.sgd
+
+----------------------------------------------------------------------
+print '==> defining training procedure'
+
+
+--trainLogger = optim.Logger(paths.concat(opt.save, 'train.log'))
+--testLogger = optim.Logger(paths.concat(opt.save, 'test.log'))
+--paramLogger = optim.Logger(paths.concat(opt.save, 'params.log'))
+
+
+--paramLogger:add{['maxIter'] = opt.maxIter, ['momentum'] = opt.momentum,
+ --['weightDecay'] = opt.weightDecay, ['model'] = opt.model, ['optimization'] = opt.optimization, ['learningRate'] = opt.learningRate, ['loss'] = opt.loss, ['batchSize'] = opt.batchSize}
+
+if model then
+   parameters,gradParameters = model:getParameters()
+end
+
 
    -- epoch tracker
    epoch = epoch or 1
@@ -104,19 +134,19 @@ function train_model(model, criterion, trainData)
    model:training()
 
    -- shuffle at each epoch
-   shuffle = torch.randperm(data:size())
+   shuffle = torch.randperm(trainData:size()[1])
 
    -- do one epoch
    print('==> doing epoch on training data:')
    print("==> online epoch # " .. epoch .. ' [batchSize = ' .. opt.batchSize .. ']')
-   for t = 1,trainData:size(),opt.batchSize do
+   for t = 1,trainData:size()[1],opt.batchSize do
       -- disp progress
-      xlua.progress(t, trainData:size())
+      xlua.progress(t, trainData:size()[1])
 
       -- create mini batch
       local inputs = {}
       local targets = {}
-      for i = t,math.min(t+opt.batchSize-1,trainData:size()) do
+      for i = t,math.min(t+opt.batchSize-1,trainData:size()[1]) do
          -- load new sample
          local input = trainData.data[shuffle[i]]
          
@@ -171,8 +201,9 @@ function train_model(model, criterion, trainData)
 
    -- time taken
    time = sys.clock() - time
-   time = time / trainData:size()
+   time = time / trainData:size()[1]
    print("\n==> time to learn 1 sample = " .. (time*1000) .. 'ms')
+
 
    -- save/log current net
    local filename = paths.concat(opt.save, 'model.net')
@@ -180,7 +211,6 @@ function train_model(model, criterion, trainData)
    print('==> saving model to '..filename)
    torch.save(filename, model)
 
-   -- next epoch
    epoch = epoch + 1
 end
 
