@@ -18,7 +18,7 @@ require 'image'
 require 'xlua'
 require 'math'
 require 'lfs'
-
+require 'unsup'
 
 function generate_samples( input, commitee_count, real_seeds_count, faux_samples_count, patch_size )
 	
@@ -157,6 +157,16 @@ function color_transform( img, max_hue_shift, max_sat_shift, max_val_shift )
 	
 	return hsvimg
 end
+
+function pca_perturb_colors( img )
+	
+	-- randomly shift the colors along their principal components
+
+	new_img = img:reshape(96 * 96,3)
+
+
+end
+
 
 function scale_transform( img, max_shift, lower_bound )
 	

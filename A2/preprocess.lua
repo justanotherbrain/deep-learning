@@ -45,3 +45,5 @@ function validation_split( data, fraction )
 	test = data:sub(split_index, data:size())
 	
 end
+
+
