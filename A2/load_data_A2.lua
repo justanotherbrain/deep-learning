@@ -9,7 +9,7 @@ require 'sys'
 local matio = require 'matio'
 
 if arg[1] == 'remote' then 
-	data_directory = '../stl10_binary/'
+	data_directory = 'stl10_binary/'
 	
 else
 	data_directory = '/Users/sam.royston/Downloads/stl10_binary/'
