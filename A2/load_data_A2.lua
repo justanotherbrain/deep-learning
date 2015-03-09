@@ -8,10 +8,12 @@ require 'sys'
 
 local matio = require 'matio'
 
-if argv[1] == 'remote' then do:
-	data_directory = '/Users/sam.royston/Downloads/stl10_binary/'
-else:
+if arg[1] == 'remote' then 
 	data_directory = '../stl10_binary/'
+	
+else
+	data_directory = '/Users/sam.royston/Downloads/stl10_binary/'
+end
 
 train_file = 'train_X.bin'
 train_labels_file = 'train_y.bin'
