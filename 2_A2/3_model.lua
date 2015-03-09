@@ -22,42 +22,28 @@ if not opt then
 	cmd:text('ConvNN Model Definition')
 	cmd:text()
 	cmd:text('Options:')
-	cmd:option('-comp_type', 'cpu', 'cpu | gpu')
+	cmd:option('-comp_type', 'gpu', 'cpu | gpu')
 	cmd:text()
 	opt = cmd:parse(arg or {})
 end
 
------------------------------------------------------------------------
--- Gabor function as inspired by Prashant Lalwani
--- lambda is wavelength of filter
--- theta is orietnation of the gabor function (in degrees)
--- shi is phase offset
--- sigma is gaussian envelpoe
--- gamma is spatial aspect ratio
-
-pi = 3.14
-gamma = 0.5
-shi = 0
-
-function GaborLayer(Sx,Sy,lambda,theta)
-        sigma = 0.56*lambda
-        Gabor = torch.Tensor(Sx,Sy)
-        for x = 1,Sx do
-                for y = 1,Sy do
-                       xPrime = (x-Sx/2-1)*math.cos(theta) + (y-Sy/2-1)*math.sin(theta) --equation 1
-                        yPrime = -(x-Sx/2-1)*math.sin(theta) + (y-Sy/2-1)*math.cos(theta) --equation 2
-                        Gabor[x][y] = math.exp(-1/(sigma*3)*((xPrime^2)+(yPrime^2 * gamma^2 )))*math.cos(2*pi*xPrime/lambda + shi) -- equation 3
-                end
-        end
-        return(Gabor)
+function RemoveLastLayers(model, n)
+  --This assumes we're using nn.Sequential as out base...fix it if you want
+  if n == 0 then return model end
+  ret = nn.Sequential()
+  for i = 1,model:size()-n do
+    ret:add(model:get(i):clone())
+  end
+  return ret
 end
-
-
-
 ------------------------------------------------------------------------
 print '==> define parameters'
 
 noutputs = 10 -- 10 classes
+
+encoder = torch.load("encoder.net")
+model = RemoveLastLayers(encoder,3)
+
 
 -- input dimensions
 nfeats = 3
@@ -72,17 +58,17 @@ poolsize = 2
 normkernel = image.gaussian1D(7)
 
 
-if opt.type == 'gpu' then
-	model = nn.Sequential()
+if opt.comp_type == 'gpu' then
+	--model = nn.Sequential()
 
 	-- stage 1: filter bank -> squashing -> L2 pooling -> normalization
-	model:add(nn.SpatialConvolutionMM(nstates[1], nstates[2], filtsize, filtsize))
+	model:add(nn.SpatialConvolutionMM(100, nstates[1], filtsize, filtsize))
 	model:add(nn.ReLU())
 	model:add(nn.SpatialMaxPooling(poolsize,poolsize,poolsize,poolsize))
 	
 	-- stage 2: filter bank -> squashing -> L2 pooling -> normalization
 	model:add(nn.SpatialConvolutionMM(nstates[1], nstates[2], filtsize, filtsize))
-	model:add(nn.ReLu())
+	model:add(nn.ReLU())
 	model:add(nn.SpatialMaxPooling(poolsize, poolsize, poolsize, poolsize))
 
 	-- stage 3: standard 2-layer neural network
@@ -115,9 +101,7 @@ else
 
 	-- layer 3: standard 2-layer neural network
 	
+end
 
-
-
-
-
+parameters,gradParameters = model:getParameters()
 

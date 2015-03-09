@@ -32,47 +32,60 @@ print '==> download dataset'
 
 --dir = '/scratch/courses/DSGA1008/A2/matlab'
 dir = paths.cwd() .. '/'
-if not paths.filep(dir .. 'train.mat') then
-	os.execute('wget -qO- http://ai.stanford.edu/~acoates/stl10/stl10_matlab.tar.gz | tar xvz')
-	os.execute('mv stl10_matlab/* .')
-	train_file = 'train.mat'
-	test_file = 'test.mat'
-	unlabeled_file = 'unlabeled.mat'
+if not paths.filep(dir .. 'train_X.bin') then
+	os.execute('wget -qO- http://ai.stanford.edu/~acoates/stl10/stl10_binary.tar.gz | tar xvz')
+	os.execute('mv stl10_binary/* .')
+	train_file = 'train_X.bin'
+	train_labels = 'train_y.bin'
+	test_file = 'test_X.bin'
+	test_labels = 'test_y.bin'
+	unlabeled_file = 'unlabeled_X.bin'
 else
-	train_file = dir .. 'train.mat'
-	test_file = dir .. 'test.mat'
-	unlabeled_file = dir .. 'unlabeled.mat'
+        train_file = 'train_X.bin'
+        train_labels = 'train_y.bin'
+        test_file = 'test_X.bin'
+        test_labels = 'test_y.bin'
+        unlabeled_file = 'unlabeled_X.bin'
 end
 
-loaded = matio.load(train_file)
-t = loaded.X:transpose(1,2)
-train_size=t:size()
+loaded = torch.DiskFile(train_file,'r',true)
+loaded:binary():littleEndianEncoding()
+tmp=torch.ByteTensor(5000,3,96,96)
+loaded:readByte(tmp:storage())
+train_size=5000
+label_fd = torch.DiskFile(train_labels,'r',true)
+label_fd:binary():littleEndianEncoding()
+label = torch.ByteTensor(5000)
+label_fd:readByte(label:storage())
 trainData = {
-	data = torch.reshape(t,train_size[2],96,96,3),
-	labels = loaded.y[1],
+	data = tmp:transpose(3,4),
+	labels = label,
 	size = function() return train_size end
 }
 
 
-loaded = matio.load(test_file)
-t = loaded.X:transpose(1,2)
-test_size=t:size()
+loaded = torch.DiskFile(test_file,'r',true)
+loaded:binary():littleEndianEncoding()
+tmp = torch.ByteTensor(8000,3,96,96)
+loaded:readByte(tmp:storage())
+test_size=8000
+label_fd = torch.DiskFile(test_labels,'r',true)
+label_fd:binary():littleEndianEncoding()
+label = torch.ByteTensor(8000)
+label_fd:readByte(label:storage())
 testData = {
-	data = torch.reshape(t,test_size[2],96,96,3),
-	labels = loaded.y[1],
+	data = tmp:transpose(3,4),
+	labels = label,
 	size = function() return test_size end
 }
 
--- loaded = matio.load(unlabeled_file)
--- t = loaded.X:transpose(1,2)
--- unlabeled_size = t:size()
 loaded = torch.DiskFile('unlabeled_X.bin','r',true)
 loaded:binary():littleEndianEncoding()
-tmp = torch.ByteTensor(100000,96,96,3)
+tmp = torch.ByteTensor(100000,3,96,96)
 loaded:readByte(tmp:storage())
 unlabeled_size = 100000
 unlabeledData = {
-	data = tmp:transpose(2,3),
+	data = tmp:transpose(3,4),
 	size = function() return unlabeled_size end
 }
 
@@ -88,11 +101,11 @@ unlabeledData.data = unlabeledData.data:float()
 -- Convert images to YUV
 print '==> preprocessing data: colorspace RGB -> YUV'
 
-for i = 1,train_size[2] do
+for i = 1,train_size do
 	trainData.data[i] = image.rgb2yuv(trainData.data[i])
 end
 
-for i = 1,test_size[2] do
+for i = 1,test_size do
 	testData.data[i] = image.rgb2yuv(testData.data[i])
 end
 
@@ -131,10 +144,10 @@ neighborhood = image.gaussian1D(13)
 normalization = nn.SpatialContrastiveNormalization(1,neighborhood,1):float()
 
 for c in ipairs(channels) do
-	for i = 1,train_size[2] do
+	for i = 1,train_size do
 		trainData.data[{i,{c},{},{}}] = normalization:forward(trainData.data[{i,{c},{},{},}])
 	end
-	for i = 1,test_size[2] do
+	for i = 1,test_size do
 		testData.data[{i,{c},{},{}}]=normalization:forward(testData.data[{i,{c},{},{}}])
 	end
 	for i = 1,unlabeled_size do

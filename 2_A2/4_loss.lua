@@ -15,10 +15,10 @@ if not opt then
 	cmd:text('Pick loss function')
 	cmd:text()
 	cmd:text('Options:')
-	cmd:option('-loss','distance','type of loss function to minimize: nll, distance')
+	cmd:option('-loss','nll','type of loss function to minimize: nll, distance')
 	cmd:text()
 	opt = cmd:parse(arg or {})
-	model = nn.Seuential()
+	--model = nn.Sequential()
 end
 
 -- 10 classes
@@ -27,12 +27,15 @@ noutputs = 10
 print '==> define loss'
 
 
-model:add(nn.LogSoftMax())
+--model:add(nn.LogSoftMax())
 
-if opt.loss == 'nll' then
+loss = 'nll'
+
+if loss == 'nll' then
+	model:add(nn.LogSoftMax())
 	criterion = nn.ClassNLLCriterion()
 
-elseif opt.loss = 'distance' then
+elseif opt.loss == 'distance' then
 	-- This will try to minimze the confusion matrix by pushing the confusion matrix to the identity matrix.
 	criterion = nn.DistKLDivCriterion()
 	-- the perfect distribution on the confusion matrix is the identity matrix
@@ -45,4 +48,6 @@ end
 
 
 
+print '==> the loss function: '
+print(criterion)
 
