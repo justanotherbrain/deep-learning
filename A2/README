@@ -4,7 +4,7 @@ TO TRAIN MODEL AND TEST:
 export HERE=$PWD
 ./execute
 On HPC
-qsub testModel -v HERE=$PWD
+qsub execute -v HERE=$PWD
 
 TO TEST MODEL
 export HERE=$PWD
