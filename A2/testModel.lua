@@ -76,17 +76,17 @@ for i = 1,test_data:size()[1] do
 end
 -- load pre trained model
 
---model = torch.load('savedModel/model.net')
+model = torch.load('trainingModels/model.net')
 
 
 
 testData = {
         data = test_data,
         labels = test_labels,
-        size = function() return test_x:size() end
+        size = function() return test_data:size() end
 }
 
-	test(model,validData)
+	test(model,testData)
 
 
 
