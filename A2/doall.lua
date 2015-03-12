@@ -1,4 +1,5 @@
 require 'torch'
+debugger = require fb.debugger'
 print '==> processing options'
 
 -- current session's storage directory
