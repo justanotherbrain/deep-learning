@@ -1,5 +1,4 @@
 require 'torch'
-debugger = require fb.debugger'
 print '==> processing options'
 
 -- current session's storage directory
@@ -37,13 +36,13 @@ function ParseCommandline()
   cmd:option('-t0', 1, 'start averaging at t0 (ASGD only), in nb of epochs')
   cmd:option('-maxIter', 2, 'maximum nb of iterations for CG and LBFGS')
   cmd:option('-type', 'double', 'type: double | float | cuda')
-  cmd:option('-models', 2, 'number of models to train')
+  cmd:option('-models', 1, 'number of models to train')
   cmd:option('-maxEpoch', 4, 'number of epochs to train for without seeing the best guess improve')
   cmd:option('-angle', math.pi/18, 'angle to rotate the training images')
   cmd:option('-hflip', 1, 'reflect training images? 1|0')
   cmd:option('-folds', 1, 'input to CreateFolds. <=1 for one model, otherwise, should equal #models')
   cmd:option('-trteb', 3, 'train test or both 1=train,2=test,3=both')
-  cmd:option('-kaggle','none','where to save to')
+  cmd:option('-kaggle','predictions.csv','where to save to')
   cmd:option('-maxtime', 55, 'maximum number of minutes to spend on training')
   cmd:option('-modelName', 'combined_model.net', 'model name for saving or loading')
   cmd:text()
