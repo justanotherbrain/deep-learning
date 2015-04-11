@@ -66,6 +66,8 @@ function TemporalLogExpPooling:updateOutput(input)
    if input:size():size() == 2 then
      self.output = self.output:reshape(nOutputFrame, input:size(2))
    end
+   --SUMS IS ACTUALLY 1/SUM
+   self.sums = self.sums:pow(-1)
    return self.output
 end
 
@@ -82,20 +84,28 @@ function TemporalLogExpPooling:updateGradInput(input, gradOutput)
      inp = input
      gradOut = gradOutput
    end
+
+   local outRowsToUpdate = {}
+   for inputRow = 1,inp:size(2) do
+     table.insert(outRowsToUpdate,{})
+     for outRow = 1,self.nOutputFrame do
+        local outBot = self.dW * (outRow - 1) + 1
+        local outTop = self.dW * (outRow - 1) + self.kW
+        if inputRow >= outBot and inputRow <= outTop then
+          table.insert(outRowsToUpdate[inputRow], outRow)
+        end
+     end
+   end
    self.gradInput = torch.zeros(inp:size())
    for sample=1,inp:size(1) do
      for inputRow=1, inp:size(2) do
        for inputCol=1, inp:size(3) do
-         local temp = torch.zeros(gradOut:size(2), gradOut:size(3))
-         for outRow=1,self.nOutputFrame do
-           local outBot = self.dW * (outRow - 1) + 1
-           local outTop = self.dW * (outRow - 1) + self.kW
-           if inputRow >= outBot and inputRow <= outTop then
-             temp[outRow][inputCol] = 1/(self.sums[sample][outRow][inputCol]) * torch.exp(inp[sample][inputRow][inputCol] * self.beta)
-             --print("inRow "..inputRow.." inCol "..inputCol.." outrow: "..outRow.." temp:  "..temp[outRow][inputCol].." "..torch.exp(inp[sample][inputRow][inputCol]).. " ")
-           end
+         local tempSum = 0
+         for outRowInd =1,#outRowsToUpdate[inputRow] do
+           local outRow = outRowsToUpdate[inputRow][outRowInd]
+           tempSum = tempSum + self.sums[sample][outRow][inputCol] * torch.exp(inp[sample][inputRow][inputCol] * self.beta) * gradOut[sample][outRow][inputCol]
          end
-         self.gradInput[sample][inputRow][inputCol] = torch.Tensor(temp:cmul(gradOut[sample])):sum()
+         self.gradInput[sample][inputRow][inputCol] = tempSum 
        end
      end
    end
@@ -112,7 +122,7 @@ function TemporalLogExpPooling:empty()
    self.output:storage():resize(0)
    self.indices:resize()
    self.indices:storage():resize(0)
-   self.output:resize()
+   self.sums:resize()
    self.sums:storage():resize(0)
 end
 --first dimension = # time steps

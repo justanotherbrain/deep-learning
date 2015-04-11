@@ -1,7 +1,9 @@
 require 'torch'
 require 'nn'
 require 'optim'
-
+require 'xlua'
+dofile 'A3_skeleton.lua'
+torch.manualSeed(123)
 ffi = require('ffi')
 
 --- Parses and loads the GloVe word vectors into a hash table:
@@ -122,8 +124,29 @@ function test_model(model, data, labels, opt)
     return err
 end
 
-function main()
-
+function ParseCommandLine()
+    local cmd = torch.CmdLine()
+    cmd:option('-glovePath','g100.txt','path to raw glove data .txt file')
+    cmd:option('-dataPath','/scratch/courses/DSGA1008/A3/data/train.t7b','path to data file')
+    cmd:option('-inputDim',100,'dim of word vectors')
+    cmd:option('-nTrainDocs', 10000,'nTrainDocs is the number of documents per class used in the training set') 
+    cmd:option('-nTestDocs', 0,'') 
+    cmd:option('-nEpochs', 5,'epochs to train')
+    cmd:option('-minibatchSize', 128,'minibatch size')
+    cmd:option('-learningRate', 0.1,'learning rate for SGD')
+    cmd:option('-nClasses', 5, 'classes of data, this should be changed with caution')
+    cmd:option('-momentum', 0.1,'momentum in sgd') 
+    cmd:option('-idx', 1,'')
+    cmd:option('-type', 'double', 'cuda,float,double')
+    cmd:option('-tlep', '1','inf=maxpool, any positive number=tlep')
+    opt = cmd:parse(arg or {})
+    opt.nBatches = math.floor(opt.nTrainDocs / opt.minibatchSize)
+    if opt.type == 'cuda' then
+      print('Using Cuda')
+      require 'cunn'
+      torch.setdefaulttensortype('torch.FloatTensor')
+    end
+    --[[
     -- Configuration parameters
     opt = {}
     -- change these to the appropriate data locations
@@ -145,10 +168,44 @@ function main()
     opt.learningRateDecay = 0.001
     opt.momentum = 0.1
     opt.idx = 1
+    ]]
+    return opt 
+end
 
+function ModelCrit(opt)
+-- construct model:
+    model = nn.Sequential()
+   
+    -- if you decide to just adapt the baseline code for part 2, you'll probably want to make this linear and remove pooling
+    model:add(nn.TemporalConvolution(1, 20, 10, 1))
+    
+    --------------------------------------------------------------------------------------
+    -- Replace this temporal max-pooling module with your log-exponential pooling module:
+    --------------------------------------------------------------------------------------
+    if opt.tlep == 'inf' then
+      model:add(nn.TemporalMaxPooling(3, 1))
+    else
+      model:add(nn.TemporalLogExpPooling(3,1, tonumber(opt.tlep)))
+    end
+    
+    model:add(nn.Reshape(20*89, true))
+    model:add(nn.Linear(20*89, 5))
+    model:add(nn.LogSoftMax())
+
+    criterion = nn.ClassNLLCriterion()
+    return model, criterion
+end
+
+function main()
+    print("Parse args...")
+    local opt = ParseCommandLine()
+    print(opt)
     print("Loading word vectors...")
     local glove_table = load_glove(opt.glovePath, opt.inputDim)
     
+    print("Create model and criterion...")
+    model, criterion = ModelCrit(opt)
+    print(model)
     print("Loading raw data...")
     local raw_data = torch.load(opt.dataPath)
     
@@ -162,25 +219,9 @@ function main()
     -- make your own choices - here I have not created a separate test set
     local test_data = training_data:clone() 
     local test_labels = training_labels:clone()
-
-    -- construct model:
-    model = nn.Sequential()
-   
-    -- if you decide to just adapt the baseline code for part 2, you'll probably want to make this linear and remove pooling
-    model:add(nn.TemporalConvolution(1, 20, 10, 1))
-    
-    --------------------------------------------------------------------------------------
-    -- Replace this temporal max-pooling module with your log-exponential pooling module:
-    --------------------------------------------------------------------------------------
-    model:add(nn.TemporalMaxPooling(3, 1))
-    
-    model:add(nn.Reshape(20*39, true))
-    model:add(nn.Linear(20*39, 5))
-    model:add(nn.LogSoftMax())
-
-    criterion = nn.ClassNLLCriterion()
-   
+    print("Train model")
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
+    print("Test model")
     local results = test_model(model, test_data, test_labels)
     print(results)
 end
