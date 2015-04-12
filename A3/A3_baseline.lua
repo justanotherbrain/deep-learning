@@ -90,7 +90,7 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     parameters, grad_parameters = model:getParameters()
     
     -- optimization functional to train the model with torch's optim library
-    local minibatch = torch.Tensor(opt.minibatchSize,data:size(2))
+    local minibatch = torch.Tensor(opt.minibatchSize,data:size(2), 1)
     local minibatch_labels = torch.Tensor(opt.minibatchSize)
     if opt.type == 'cuda' then
       minibatch:cuda()
@@ -100,12 +100,12 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
       test_data:cuda()
       test_labels:cuda()
     end
+    model:training()
     local function feval(x) 
         minibatch:copy(data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)))
         minibatch_labels:copy(labels:sub(opt.idx, opt.idx + opt.minibatchSize - 1))
-        
-        model:training()
-        local minibatch_loss = criterion:forward(model:forward(minibatch), minibatch_labels)
+        local f = model:forward(minibatch)
+        local minibatch_loss = criterion:forward(f, minibatch_labels)
         model:zeroGradParameters()
         model:backward(minibatch, criterion:backward(model.output, minibatch_labels))
         
@@ -115,7 +115,7 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     local accuracy = 1
     local epoch = 1
     local nBatches = math.floor(data:size(1) / opt.minibatchSize)
-    while accuracy - bestAccuracy > opt.accThresh and epoch <= opt.maxEpochs do
+    while accuracy - bestAccuracy > opt.accThresh do
         local order = torch.randperm(nBatches) -- not really good randomization
         for batch=1,nBatches do
             opt.idx = (order[batch] - 1) * opt.minibatchSize + 1
@@ -151,7 +151,6 @@ function ParseCommandLine()
     cmd:option('-inputDim',50,'dim of word vectors')
     cmd:option('-debug', 0, 'debug=reduced data set')
     cmd:option('-valPerc',10,'percentage of all samples to use for validation')
-    cmd:option('-maxEpochs', 10,'max epochs to train')
     cmd:option('-minibatchSize', 128,'minibatch size')
     cmd:option('-learningRate', 0.1,'learning rate for SGD')
     cmd:option('-momentum', 0.1,'momentum in sgd') 
