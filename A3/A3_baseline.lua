@@ -87,19 +87,19 @@ end
 
 function preprocess_sentence(raw_data, wordvector_table, opt)
     --This code is very similar to the code above, but words are saved instead of added
-    local tempSentence = torch.zeros(opt.sentenceDim, opt.inputDim)
     local totalSamples = raw_data.index:size(1) * raw_data.index:size(2)
     local samplesPerClass = raw_data.index:size(2)
     if opt.debug == 1 then
       totalSamples = 2 * opt.minibatchSize * raw_data.index:size(1)
       samplesPerClass = 2 * opt.minibatchSize
     end
-    local data = torch.zeros(totalSamples, opt.sentenceDim, opt.inputDim + 2 * opt.padding)
+    local data = torch.zeros(totalSamples, opt.sentenceDim + 2 * opt.padding, opt.inputDim)
     local labels = torch.zeros(totalSamples)
     
     -- use torch.randperm to shuffle the data, since it's ordered by class in the file
     local order = torch.randperm(totalSamples)
     
+    local tempSentence = torch.zeros(opt.sentenceDim, opt.inputDim)
     for i=1,raw_data.index:size(1) do
         for j=1,samplesPerClass do
             local k = order[(i-1)*samplesPerClass + j]
@@ -120,7 +120,7 @@ function preprocess_sentence(raw_data, wordvector_table, opt)
                 end
             end
             --Not centering this as I'm unsure if this will have an effect.
-            data[{k}] = tempSentence
+            data[{{k},{opt.padding + 1, opt.padding + opt.sentenceDim},{1,opt.inputDim}}] = tempSentence
             labels[k] = i
         end
     end
@@ -141,7 +141,6 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
       minibatch = minibatch:cuda()
       minibatch_labels = minibatch_labels:cuda()
       test_data = test_data:cuda()
-      test_labels = test_labels:cuda()
     end
     local function feval(x) 
         minibatch:copy(data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)))
@@ -178,17 +177,17 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
 end
 
 function test_model(model, data, labels, opt)
-    
     model:evaluate()
-
-    local pred = model:forward(data)
-    local _, argmax = pred:max(2)
-    local err = torch.ne(argmax:double(), labels:double()):sum() / labels:size(1)
-
+    local err = 0
+    for i=1,data:size(1) do
+      local pred = model:forward(data[{{i}}])
+      local _, argmax = pred:max(2)
+      err = err + (argmax:double()[1][1] == labels[i] and 0 or 1)
+    end
     --local debugger = require('fb.debugger')
     --debugger.enter()
 
-    return err
+    return err/labels:size(1)
 end
 
 function ParseCommandLine()
@@ -314,11 +313,9 @@ function main()
     local training_labels = labels:sub(1, processed_data:size(1)*(1-opt.valPerc/100)):clone()
     
     -- make your own choices - here I have not created a separate test set
-    local test_data = processed_data:sub(processed_data:size(1)*(1-opt.valPerc/100), processed_data:size(1), 1, processed_data:size(2)):clone()
-    local train_labels = labels:sub(processed_data:size(1)*(1-opt.valPerc/100), processed_data:size(1)):clone()
+    local test_data = processed_data:sub(processed_data:size(1)*(1-opt.valPerc/100)+1, processed_data:size(1), 1, processed_data:size(2)):clone()
+    local test_labels = labels:sub(processed_data:size(1)*(1-opt.valPerc/100)+1, processed_data:size(1)):clone()
 
-    local test_data = training_data:clone() 
-    local test_labels = training_labels:clone()
     print("Train model")
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
 end
