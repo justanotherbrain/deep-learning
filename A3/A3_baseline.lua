@@ -134,16 +134,25 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     parameters, grad_parameters = model:getParameters()
     
     -- optimization functional to train the model with torch's optim library
-    local minibatch = torch.Tensor(opt.minibatchSize,data:size(2), 1)
+    local minibatch 
+    if opt.sentenceDim == 0 then
+      minibatch = torch.Tensor(opt.minibatchSize,data:size(2), 1)
+    else
+      minibatch = torch.Tensor(opt.minibatchSize,data:size(2), data:size(3))
+    end
     local minibatch_labels = torch.Tensor(opt.minibatchSize)
-    model:training()
     if opt.type == 'cuda' then
       minibatch = minibatch:cuda()
       minibatch_labels = minibatch_labels:cuda()
       test_data = test_data:cuda()
     end
     local function feval(x) 
-        minibatch:copy(data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)))
+        model:training()
+        if opt.sentenceDim == 0 then
+          minibatch:copy(data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)))
+        else
+          minibatch:copy(data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2), 1, data:size(3)))
+        end
         minibatch_labels:copy(labels:sub(opt.idx, opt.idx + opt.minibatchSize - 1))
         local f = model:forward(minibatch)
         local minibatch_loss = criterion:forward(f, minibatch_labels)
@@ -173,7 +182,7 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
           opt.learningRate = opt.learningRate / 2
         end
         elapsed = os.difftime(os.time(),time)
-        print("elapsed: "..elapsed,  "epoch: "..epoch, "error: "..err)
+        print("elapsed: "..elapsed/60,  "epoch: "..epoch, "error: "..err)
         epoch = epoch + 1
     end
 
@@ -212,6 +221,7 @@ function ParseCommandLine()
     cmd:option('-maxTime', 50, 'maximum training time (minutes)')
     cmd:option('-sentenceDim', 0, 'Number of words to use in sentence. If zero, use bag of words')
     cmd:option('-filename', 'model.net', 'Filename of model to output')
+    cmd:option('-padding', 7, 'padding for sentence')
     opt = cmd:parse(arg or {})
     if opt.debug == 1 then
       print('DEBUG MODE ACTIVATED!')
@@ -264,18 +274,23 @@ function SentenceModelCrit(opt)
   local transformedDim = 256
   local kernel = 7
   local kernel2 = 3
+  local nOutputFrames = opt.sentenceDim + 2 * opt.padding
   --1
   model:add(nn.TemporalConvolution(opt.inputDim,transformedDim, kernel))
+  nOutputFrames = math.floor((nOutputFrames-kernel)/1) + 1
   model:add(nn.Threshold())
   model:add(nn.TemporalMaxPooling(3,3))
+  nOutputFrames = math.floor((nOutputFrames-3)/3) + 1
   --2
   model:add(nn.TemporalConvolution(transformedDim,transformedDim, kernel2))
+  nOutputFrames = math.floor((nOutputFrames-kernel2)/1) + 1
   model:add(nn.Threshold())
   model:add(nn.TemporalMaxPooling(3,3))
- 
-  model:add(nn.Reshape(2304))
+  nOutputFrames = math.floor((nOutputFrames-3)/3) + 1
+  --Reshape 
+  model:add(nn.Reshape(nOutputFrames * transformedDim))
   --3
-  model:add(nn.Linear(2304, 256))
+  model:add(nn.Linear(nOutputFrames * transformedDim, 256))
   model:add(nn.Threshold())
   model:add(nn.Dropout(0.5))
   
@@ -291,6 +306,9 @@ function SentenceModelCrit(opt)
   return model, criterion
 
 end
+--model, crit = SentenceModelCrit({inputDim = 50, padding=2,sentenceDim=100})
+--f = torch.Tensor(640,104,50)
+--print(model:forward(f):size())
 
 function main()
     print("Parse args...")
@@ -314,12 +332,12 @@ function main()
     print(model)
 
     -- split data into makeshift training and validation sets
-    local training_data = processed_data:sub(1, processed_data:size(1)*(1-opt.valPerc/100), 1, processed_data:size(2)):clone()
-    local training_labels = labels:sub(1, processed_data:size(1)*(1-opt.valPerc/100)):clone()
+    local training_data = processed_data:sub(1, processed_data:size(1)*(1-opt.valPerc/100), 1, processed_data:size(2))
+    local training_labels = labels:sub(1, processed_data:size(1)*(1-opt.valPerc/100))
     
     -- make your own choices - here I have not created a separate test set
-    local test_data = processed_data:sub(processed_data:size(1)*(1-opt.valPerc/100)+1, processed_data:size(1), 1, processed_data:size(2)):clone()
-    local test_labels = labels:sub(processed_data:size(1)*(1-opt.valPerc/100)+1, processed_data:size(1)):clone()
+    local test_data = processed_data:sub(processed_data:size(1)*(1-opt.valPerc/100)+1, processed_data:size(1), 1, processed_data:size(2))
+    local test_labels = labels:sub(processed_data:size(1)*(1-opt.valPerc/100)+1, processed_data:size(1))
 
     print("Train model")
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
