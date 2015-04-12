@@ -92,15 +92,15 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     -- optimization functional to train the model with torch's optim library
     local minibatch = torch.Tensor(opt.minibatchSize,data:size(2), 1)
     local minibatch_labels = torch.Tensor(opt.minibatchSize)
-    if opt.type == 'cuda' then
-      minibatch:cuda()
-      minibatch_labels:cuda()
-      model:cuda()
-      criterion:cuda()
-      test_data:cuda()
-      test_labels:cuda()
-    end
     model:training()
+    if opt.type == 'cuda' then
+      minibatch = minibatch:cuda()
+      minibatch_labels = minibatch_labels:cuda()
+      model = model:cuda()
+      criterion = criterion:cuda()
+      test_data = test_data:cuda()
+      test_labels = test_labels:cuda()
+    end
     local function feval(x) 
         minibatch:copy(data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)))
         minibatch_labels:copy(labels:sub(opt.idx, opt.idx + opt.minibatchSize - 1))
@@ -115,13 +115,17 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     local accuracy = 1
     local epoch = 1
     local nBatches = math.floor(data:size(1) / opt.minibatchSize)
-    while accuracy - bestAccuracy > opt.accThresh do
+    local time = os.time()
+    while accuracy - bestAccuracy > opt.accThresh and os.difftime(os.time(),time) < opt.maxTime * 60 do
         local order = torch.randperm(nBatches) -- not really good randomization
         for batch=1,nBatches do
             opt.idx = (order[batch] - 1) * opt.minibatchSize + 1
             optim.sgd(feval, parameters, opt)
         end
         accuracy = test_model(model, test_data, test_labels, opt)
+        if accuracy > bestAccuracy then
+          bestAccuracy = accuracy
+        end
         if epoch % opt.learningRateDecay == 0 then
           opt.learningRate = opt.learningRate / 2
         end
@@ -158,7 +162,8 @@ function ParseCommandLine()
     cmd:option('-type', 'double', 'cuda,float,double')
     cmd:option('-tlep', 'inf','inf=maxpool, any positive number=tlep')
     cmd:option('-accThresh', 0.005, 'percentage diff of accuracy before stopping')
-    cmd:option('-learningRateDecay', 5, 'halve the learning rate every n epochs')
+    cmd:option('-learningRateDecay', 10, 'halve the learning rate every n epochs')
+    cmd:option('-maxTime', 50, 'maximum training time (minutes)')
     opt = cmd:parse(arg or {})
     if opt.debug == 1 then
       print('DEBUG MODE ACTIVATED!')
@@ -170,6 +175,7 @@ function ParseCommandLine()
         print('ERROR. TLEP not stable with cuda.')
       end
       print('Using Cuda')
+      require 'cutorch'
       require 'cunn'
       torch.setdefaulttensortype('torch.FloatTensor')
     end
@@ -187,6 +193,7 @@ function ModelCrit(opt)
     -- Replace this temporal max-pooling module with your log-exponential pooling module:
     --------------------------------------------------------------------------------------
     if opt.tlep == 'inf' then
+      print('MaxPooling')
       model:add(nn.TemporalMaxPooling(3, 1))
     else
       model:add(nn.TemporalLogExpPooling(3,1, tonumber(opt.tlep)))
