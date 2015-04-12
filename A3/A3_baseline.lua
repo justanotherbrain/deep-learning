@@ -152,28 +152,32 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
         
         return minibatch_loss, grad_parameters
     end
-    local bestAccuracy = 0
-    local accuracy = 1
+    local err = 1
     local epoch = 1
     local nBatches = math.floor(data:size(1) / opt.minibatchSize)
     local time = os.time()
-    while accuracy - bestAccuracy > opt.accThresh and os.difftime(os.time(),time) < opt.maxTime * 60 do
+    local elapsed = 0
+    local olderr = err + 1
+    --If error is increasing or not decreasing a lot, or times up, quit
+    while olderr - err  > opt.errThresh and elapsed/60  < opt.maxTime  do
         local order = torch.randperm(nBatches) -- not really good randomization
         for batch=1,nBatches do
             opt.idx = (order[batch] - 1) * opt.minibatchSize + 1
             optim.sgd(feval, parameters, opt)
         end
-        accuracy = test_model(model, test_data, test_labels, opt)
-        if accuracy > bestAccuracy then
-          bestAccuracy = accuracy
-        end
+        --Update the errors
+        local newerr = test_model(model, test_data, test_labels, opt)
+        olderr = err 
+        err = newerr
         if epoch % opt.learningRateDecay == 0 then
           opt.learningRate = opt.learningRate / 2
         end
-        print("epoch ", epoch, " error: ", accuracy)
+        elapsed = os.difftime(os.time(),time)
+        print("elapsed: "..elapsed,  "epoch: "..epoch, "error: "..err)
         epoch = epoch + 1
     end
-    print('Final validation error: ', bestAccuracy)
+
+    print('Final validation error: ', err)
 end
 
 function test_model(model, data, labels, opt)
@@ -203,7 +207,7 @@ function ParseCommandLine()
     cmd:option('-idx', 1,'')
     cmd:option('-type', 'double', 'cuda,float,double')
     cmd:option('-tlep', 'inf','inf=maxpool, any positive number=tlep')
-    cmd:option('-accThresh', 0.005, 'percentage diff of accuracy before stopping')
+    cmd:option('-errThresh', 0.005, 'percentage diff of error before stopping')
     cmd:option('-learningRateDecay', 10, 'halve the learning rate every n epochs')
     cmd:option('-maxTime', 50, 'maximum training time (minutes)')
     cmd:option('-sentenceDim', 0, 'Number of words to use in sentence. If zero, use bag of words')
