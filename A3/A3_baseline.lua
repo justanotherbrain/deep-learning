@@ -2,7 +2,8 @@ require 'torch'
 require 'nn'
 require 'optim'
 require 'xlua'
-dofile 'A3_skeleton.lua'
+--dofile 'A3_skeleton.lua'
+dofile 'skel.lua'
 torch.manualSeed(123)
 ffi = require('ffi')
 
@@ -126,9 +127,9 @@ end
 
 function ParseCommandLine()
     local cmd = torch.CmdLine()
-    cmd:option('-glovePath','g100.txt','path to raw glove data .txt file')
+    cmd:option('-glovePath','glove.6B.50d.txt','path to raw glove data .txt file')
     cmd:option('-dataPath','/scratch/courses/DSGA1008/A3/data/train.t7b','path to data file')
-    cmd:option('-inputDim',100,'dim of word vectors')
+    cmd:option('-inputDim',50,'dim of word vectors')
     cmd:option('-nTrainDocs', 10000,'nTrainDocs is the number of documents per class used in the training set') 
     cmd:option('-nTestDocs', 0,'') 
     cmd:option('-nEpochs', 5,'epochs to train')
