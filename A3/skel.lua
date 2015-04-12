@@ -27,10 +27,8 @@ function TemporalLogExpPooling:__init(kW, dW, beta)
    self.dW = dW
    self.beta = beta
    self.model = nn.Sequential()
-   local temp
-   temp = nn.Mul()
-   temp.weight[1] = self.beta
-   self.model:add(temp)
+   
+   self.model:add(nn.MulConstant(self.beta))
    
    self.model:add(nn.Exp())
    self.model:add(nn.Transpose())
@@ -39,15 +37,11 @@ function TemporalLogExpPooling:__init(kW, dW, beta)
    self.model:add(self.convLayer)
    self.model:add(nn.Transpose())
 
-   temp = nn.Mul()
-   temp.weight[1] = 1/self.kW
-   self.model:add(temp)
+   self.model:add(self.MulConstant(1/self.kW))
    
    self.model:add(nn.Log())
    
-   temp = nn.Mul()
-   temp.weight[1] = 1/self.beta
-   self.model:add(temp)
+   self.model:add(nn.MulConstant(1/self.beta))
 end
 
 function TemporalLogExpPooling:updateOutput(input)
