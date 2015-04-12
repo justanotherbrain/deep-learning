@@ -90,9 +90,19 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     parameters, grad_parameters = model:getParameters()
     
     -- optimization functional to train the model with torch's optim library
+    local minibatch = torch.Tensor(opt.minibatchSize,data:size(2))
+    local minibatch_labels = torch.Tensor(opt.minibatchSize)
+    if opt.type == 'cuda' then
+      minibatch:cuda()
+      minibatch_labels:cuda()
+      model:cuda()
+      criterion:cuda()
+      test_data:cuda()
+      test_labels:cuda()
+    end
     local function feval(x) 
-        local minibatch = data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)):clone()
-        local minibatch_labels = labels:sub(opt.idx, opt.idx + opt.minibatchSize - 1):clone()
+        minibatch:copy(data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)))
+        minibatch_labels:copy(labels:sub(opt.idx, opt.idx + opt.minibatchSize - 1))
         
         model:training()
         local minibatch_loss = criterion:forward(model:forward(minibatch), minibatch_labels)
@@ -110,7 +120,6 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
         for batch=1,nBatches do
             opt.idx = (order[batch] - 1) * opt.minibatchSize + 1
             optim.sgd(feval, parameters, opt)
-            print("epoch: ", epoch, " batch: ", batch.."/"..nBatches)
         end
         accuracy = test_model(model, test_data, test_labels, opt)
         if epoch % opt.learningRateDecay == 0 then
@@ -150,7 +159,7 @@ function ParseCommandLine()
     cmd:option('-type', 'double', 'cuda,float,double')
     cmd:option('-tlep', 'inf','inf=maxpool, any positive number=tlep')
     cmd:option('-accThresh', 0.005, 'percentage diff of accuracy before stopping')
-    cmd:option('-learningRateDecay', 4, 'halve the learning rate every n epochs')
+    cmd:option('-learningRateDecay', 5, 'halve the learning rate every n epochs')
     opt = cmd:parse(arg or {})
     if opt.debug == 1 then
       print('DEBUG MODE ACTIVATED!')
@@ -158,6 +167,9 @@ function ParseCommandLine()
       opt.valPerc = 50
     end
     if opt.type == 'cuda' then
+      if not opt.tlep == 'inf' then
+        print('ERROR. TLEP not stable with cuda.')
+      end
       print('Using Cuda')
       require 'cunn'
       torch.setdefaulttensortype('torch.FloatTensor')
