@@ -211,6 +211,7 @@ function ParseCommandLine()
     cmd:option('-learningRateDecay', 10, 'halve the learning rate every n epochs')
     cmd:option('-maxTime', 50, 'maximum training time (minutes)')
     cmd:option('-sentenceDim', 0, 'Number of words to use in sentence. If zero, use bag of words')
+    cmd:option('-filename', 'model.net', 'Filename of model to output')
     opt = cmd:parse(arg or {})
     if opt.debug == 1 then
       print('DEBUG MODE ACTIVATED!')
@@ -322,5 +323,8 @@ function main()
 
     print("Train model")
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
+    
+    print("Saving model")
+    torch.save(opt.filename, model:double())
 end
 main()
