@@ -85,6 +85,50 @@ function preprocess_data(raw_data, wordvector_table, opt)
     return data, labels
 end
 
+function preprocess_sentence(raw_data, wordvector_table, opt)
+    --This code is very similar to the code above, but words are saved instead of added
+    local tempSentence = torch.zeros(opt.sentenceDim, opt.inputDim)
+    local totalSamples = raw_data.index:size(1) * raw_data.index:size(2)
+    local samplesPerClass = raw_data.index:size(2)
+    if opt.debug == 1 then
+      totalSamples = 2 * opt.minibatchSize * raw_data.index:size(1)
+      samplesPerClass = 2 * opt.minibatchSize
+    end
+    local data = torch.zeros(totalSamples, opt.sentenceDim, opt.inputDim + 2 * opt.padding)
+    local labels = torch.zeros(totalSamples)
+    
+    -- use torch.randperm to shuffle the data, since it's ordered by class in the file
+    local order = torch.randperm(totalSamples)
+    
+    for i=1,raw_data.index:size(1) do
+        for j=1,samplesPerClass do
+            local k = order[(i-1)*samplesPerClass + j]
+            
+            local doc_size = 1
+            
+            local index = raw_data.index[i][j]
+            -- standardize to all lowercase
+            local document = ffi.string(torch.data(raw_data.content:narrow(1, index, 1))):lower()
+            -- Save as many words up to the max size, leaving the possibility of trailing zero vectors
+            tempSentence:zero()
+            for word in document:gmatch("%S+") do
+                if wordvector_table[word:gsub("%p+", "")] then
+                    doc_size = doc_size + 1
+                    local wordVector = wordvector_table[word:gsub("%p+", "")]
+                    tempSentence[{{doc_size},{}}] = wordVector
+                    if doc_size == opt.sentenceDim then break end--Arbitrarily crop large review 
+                end
+            end
+            --Not centering this as I'm unsure if this will have an effect.
+            data[{k}] = tempSentence
+            labels[k] = i
+        end
+    end
+
+    return data, labels
+
+end
+
 function train_model(model, criterion, data, labels, test_data, test_labels, opt)
 
     parameters, grad_parameters = model:getParameters()
@@ -96,8 +140,6 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     if opt.type == 'cuda' then
       minibatch = minibatch:cuda()
       minibatch_labels = minibatch_labels:cuda()
-      model = model:cuda()
-      criterion = criterion:cuda()
       test_data = test_data:cuda()
       test_labels = test_labels:cuda()
     end
@@ -132,6 +174,7 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
         print("epoch ", epoch, " error: ", accuracy)
         epoch = epoch + 1
     end
+    print('Final validation error: ', bestAccuracy)
 end
 
 function test_model(model, data, labels, opt)
@@ -150,7 +193,7 @@ end
 
 function ParseCommandLine()
     local cmd = torch.CmdLine()
-    cmd:option('-glovePath','glove.6B.50d.txt','path to raw glove data .txt file')
+    cmd:option('-glovePath','WordVectors/glove.6B.50d.txt','path to raw glove data .txt file')
     cmd:option('-dataPath','/scratch/courses/DSGA1008/A3/data/train.t7b','path to data file')
     cmd:option('-inputDim',50,'dim of word vectors')
     cmd:option('-debug', 0, 'debug=reduced data set')
@@ -164,6 +207,7 @@ function ParseCommandLine()
     cmd:option('-accThresh', 0.005, 'percentage diff of accuracy before stopping')
     cmd:option('-learningRateDecay', 10, 'halve the learning rate every n epochs')
     cmd:option('-maxTime', 50, 'maximum training time (minutes)')
+    cmd:option('-sentenceDim', 0, 'Number of words to use in sentence. If zero, use bag of words')
     opt = cmd:parse(arg or {})
     if opt.debug == 1 then
       print('DEBUG MODE ACTIVATED!')
@@ -204,7 +248,44 @@ function ModelCrit(opt)
     model:add(nn.LogSoftMax())
 
     criterion = nn.ClassNLLCriterion()
+    if opt.type == 'cuda' then
+      model = model:cuda()
+      criterion = criterion:cuda()
+    end
     return model, criterion
+end
+
+function SentenceModelCrit(opt)
+  model = nn.Sequential()
+  local transformedDim = 256
+  local kernel = 7
+  local kernel2 = 3
+  --1
+  model:add(nn.TemporalConvolution(opt.inputDim,transformedDim, kernel))
+  model:add(nn.Threshold())
+  model:add(nn.TemporalMaxPooling(3,3))
+  --2
+  model:add(nn.TemporalConvolution(transformedDim,transformedDim, kernel2))
+  model:add(nn.Threshold())
+  model:add(nn.TemporalMaxPooling(3,3))
+ 
+  model:add(nn.Reshape(2304))
+  --3
+  model:add(nn.Linear(2304, 256))
+  model:add(nn.Threshold())
+  model:add(nn.Dropout(0.5))
+  
+  --4/Final
+  model:add(nn.Linear(256,5))
+  model:add(nn.LogSoftMax())
+  
+  criterion = nn.ClassNLLCriterion()
+  if opt.type == 'cuda' then
+    model = model:cuda()
+    criterion = criterion:cuda()
+  end
+  return model, criterion
+
 end
 
 function main()
@@ -214,15 +295,20 @@ function main()
     print("Loading word vectors...")
     local glove_table = load_glove(opt.glovePath, opt.inputDim)
     
-    print("Create model and criterion...")
-    model, criterion = ModelCrit(opt)
-    print(model)
     print("Loading raw data...")
     local raw_data = torch.load(opt.dataPath)
     
     print("Computing document input representations...")
-    local processed_data, labels = preprocess_data(raw_data, glove_table, opt)
-    
+    if opt.sentenceDim == 0 then
+      processed_data, labels = preprocess_data(raw_data, glove_table, opt)
+      model, criterion = ModelCrit(opt)
+    else
+      processed_data, labels = preprocess_sentence(raw_data, glove_table, opt)
+      model, criterion = SentenceModelCrit(opt)
+    end
+    print("Create model and criterion...")
+    print(model)
+
     -- split data into makeshift training and validation sets
     local training_data = processed_data:sub(1, processed_data:size(1)*(1-opt.valPerc/100), 1, processed_data:size(2)):clone()
     local training_labels = labels:sub(1, processed_data:size(1)*(1-opt.valPerc/100)):clone()
@@ -235,9 +321,5 @@ function main()
     local test_labels = training_labels:clone()
     print("Train model")
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
-    print("Test model")
-    local results = test_model(model, test_data, test_labels)
-    print(results)
 end
-
 main()
