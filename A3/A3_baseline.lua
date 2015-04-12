@@ -47,16 +47,21 @@ end
 -- Still better would be to concatenate the word vectors into a variable-length
 -- 2D tensor and train a more powerful convolutional or recurrent model on this directly.
 function preprocess_data(raw_data, wordvector_table, opt)
-    
-    local data = torch.zeros(opt.nClasses*(opt.nTrainDocs+opt.nTestDocs), opt.inputDim, 1)
-    local labels = torch.zeros(opt.nClasses*(opt.nTrainDocs + opt.nTestDocs))
+    local totalSamples = raw_data.index:size(1) * raw_data.index:size(2)
+    local samplesPerClass = raw_data.index:size(2)
+    if opt.debug == 1 then
+      totalSamples = 2 * opt.minibatchSize * raw_data.index:size(1)
+      samplesPerClass = 2 * opt.minibatchSize
+    end
+    local data = torch.zeros(totalSamples, opt.inputDim, 1)
+    local labels = torch.zeros(totalSamples)
     
     -- use torch.randperm to shuffle the data, since it's ordered by class in the file
-    local order = torch.randperm(opt.nClasses*(opt.nTrainDocs+opt.nTestDocs))
+    local order = torch.randperm(totalSamples)
     
-    for i=1,opt.nClasses do
-        for j=1,opt.nTrainDocs+opt.nTestDocs do
-            local k = order[(i-1)*(opt.nTrainDocs+opt.nTestDocs) + j]
+    for i=1,raw_data.index:size(1) do
+        for j=1,samplesPerClass do
+            local k = order[(i-1)*samplesPerClass + j]
             
             local doc_size = 1
             
@@ -86,8 +91,8 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     
     -- optimization functional to train the model with torch's optim library
     local function feval(x) 
-        local minibatch = data:sub(opt.idx, opt.idx + opt.minibatchSize, 1, data:size(2)):clone()
-        local minibatch_labels = labels:sub(opt.idx, opt.idx + opt.minibatchSize):clone()
+        local minibatch = data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)):clone()
+        local minibatch_labels = labels:sub(opt.idx, opt.idx + opt.minibatchSize - 1):clone()
         
         model:training()
         local minibatch_loss = criterion:forward(model:forward(minibatch), minibatch_labels)
@@ -96,18 +101,23 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
         
         return minibatch_loss, grad_parameters
     end
-    
-    for epoch=1,opt.nEpochs do
-        local order = torch.randperm(opt.nBatches) -- not really good randomization
-        for batch=1,opt.nBatches do
+    local bestAccuracy = 0
+    local accuracy = 1
+    local epoch = 1
+    local nBatches = math.floor(data:size(1) / opt.minibatchSize)
+    while accuracy - bestAccuracy > opt.accThresh and epoch <= opt.maxEpochs do
+        local order = torch.randperm(nBatches) -- not really good randomization
+        for batch=1,nBatches do
             opt.idx = (order[batch] - 1) * opt.minibatchSize + 1
             optim.sgd(feval, parameters, opt)
-            print("epoch: ", epoch, " batch: ", batch)
+            print("epoch: ", epoch, " batch: ", batch.."/"..nBatches)
         end
-
-        local accuracy = test_model(model, test_data, test_labels, opt)
+        accuracy = test_model(model, test_data, test_labels, opt)
+        if epoch % opt.learningRateDecay == 0 then
+          opt.learningRate = opt.learningRate / 2
+        end
         print("epoch ", epoch, " error: ", accuracy)
-
+        epoch = epoch + 1
     end
 end
 
@@ -130,46 +140,28 @@ function ParseCommandLine()
     cmd:option('-glovePath','glove.6B.50d.txt','path to raw glove data .txt file')
     cmd:option('-dataPath','/scratch/courses/DSGA1008/A3/data/train.t7b','path to data file')
     cmd:option('-inputDim',50,'dim of word vectors')
-    cmd:option('-nTrainDocs', 10000,'nTrainDocs is the number of documents per class used in the training set') 
-    cmd:option('-nTestDocs', 0,'') 
-    cmd:option('-nEpochs', 5,'epochs to train')
+    cmd:option('-debug', 0, 'debug=reduced data set')
+    cmd:option('-valPerc',10,'percentage of all samples to use for validation')
+    cmd:option('-maxEpochs', 10,'max epochs to train')
     cmd:option('-minibatchSize', 128,'minibatch size')
     cmd:option('-learningRate', 0.1,'learning rate for SGD')
-    cmd:option('-nClasses', 5, 'classes of data, this should be changed with caution')
     cmd:option('-momentum', 0.1,'momentum in sgd') 
     cmd:option('-idx', 1,'')
     cmd:option('-type', 'double', 'cuda,float,double')
-    cmd:option('-tlep', '1','inf=maxpool, any positive number=tlep')
+    cmd:option('-tlep', 'inf','inf=maxpool, any positive number=tlep')
+    cmd:option('-accThresh', 0.005, 'percentage diff of accuracy before stopping')
+    cmd:option('-learningRateDecay', 4, 'halve the learning rate every n epochs')
     opt = cmd:parse(arg or {})
-    opt.nBatches = math.floor(opt.nTrainDocs / opt.minibatchSize)
+    if opt.debug == 1 then
+      print('DEBUG MODE ACTIVATED!')
+      opt.maxEpochs = 1
+      opt.valPerc = 50
+    end
     if opt.type == 'cuda' then
       print('Using Cuda')
       require 'cunn'
       torch.setdefaulttensortype('torch.FloatTensor')
     end
-    --[[
-    -- Configuration parameters
-    opt = {}
-    -- change these to the appropriate data locations
-    opt.glovePath = "CHANGE_ME" -- path to raw glove data .txt file
-    opt.dataPath = "CHANGE_ME"
-    -- word vector dimensionality
-    opt.inputDim = 50 
-    -- nTrainDocs is the number of documents per class used in the training set, i.e.
-    -- here we take the first nTrainDocs documents from each class as training samples
-    -- and use the rest as a validation set.
-    opt.nTrainDocs = 10000
-    opt.nTestDocs = 0
-    opt.nClasses = 5
-    -- SGD parameters - play around with these
-    opt.nEpochs = 5
-    opt.minibatchSize = 128
-    opt.nBatches = math.floor(opt.nTrainDocs / opt.minibatchSize)
-    opt.learningRate = 0.1
-    opt.learningRateDecay = 0.001
-    opt.momentum = 0.1
-    opt.idx = 1
-    ]]
     return opt 
 end
 
@@ -189,8 +181,8 @@ function ModelCrit(opt)
       model:add(nn.TemporalLogExpPooling(3,1, tonumber(opt.tlep)))
     end
     
-    model:add(nn.Reshape(20*89, true))
-    model:add(nn.Linear(20*89, 5))
+    model:add(nn.Reshape(20*39, true))
+    model:add(nn.Linear(20*39, 5))
     model:add(nn.LogSoftMax())
 
     criterion = nn.ClassNLLCriterion()
@@ -214,10 +206,13 @@ function main()
     local processed_data, labels = preprocess_data(raw_data, glove_table, opt)
     
     -- split data into makeshift training and validation sets
-    local training_data = processed_data:sub(1, opt.nClasses*opt.nTrainDocs, 1, processed_data:size(2)):clone()
-    local training_labels = labels:sub(1, opt.nClasses*opt.nTrainDocs):clone()
+    local training_data = processed_data:sub(1, processed_data:size(1)*(1-opt.valPerc/100), 1, processed_data:size(2)):clone()
+    local training_labels = labels:sub(1, processed_data:size(1)*(1-opt.valPerc/100)):clone()
     
     -- make your own choices - here I have not created a separate test set
+    local test_data = processed_data:sub(processed_data:size(1)*(1-opt.valPerc/100), processed_data:size(1), 1, processed_data:size(2)):clone()
+    local train_labels = labels:sub(processed_data:size(1)*(1-opt.valPerc/100), processed_data:size(1)):clone()
+
     local test_data = training_data:clone() 
     local test_labels = training_labels:clone()
     print("Train model")
