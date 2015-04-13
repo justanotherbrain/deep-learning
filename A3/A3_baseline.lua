@@ -310,10 +310,6 @@ function SentenceModelCrit(opt)
   return model, criterion
 
 end
---model, crit = SentenceModelCrit({inputDim = 50, padding=2,sentenceDim=100})
---f = torch.Tensor(640,104,50)
---print(model:forward(f):size())
-
 function main()
     print("Parse args...")
     local opt = ParseCommandLine()
@@ -345,7 +341,12 @@ function main()
 
     print("Train model")
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
-    
-
 end
-main()
+function DebugTest()
+  opt = {inputDim = 200, padding=2,sentenceDim=100}
+  model, crit = SentenceModelCrit(opt)
+  f = torch.Tensor(640, opt.padding * 2 + opt.sentenceDim, opt.inputDim)
+  print(model:forward(f):size())
+end
+DebugTest()
+--main()
