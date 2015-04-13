@@ -385,7 +385,7 @@ function Train(opt)
     local training_data = processed_data:sub(1, processed_data:size(1)*(1-opt.valPerc/100), 1, processed_data:size(2))
     local training_labels = labels:sub(1, processed_data:size(1)*(1-opt.valPerc/100))
     
-    -- make your own choices - here I have not created a separate test set
+    -- randomly select valPercent of the samples for validation 
     local test_data = processed_data:sub(processed_data:size(1)*(1-opt.valPerc/100)+1, processed_data:size(1), 1, processed_data:size(2))
     local test_labels = labels:sub(processed_data:size(1)*(1-opt.valPerc/100)+1, processed_data:size(1))
 
