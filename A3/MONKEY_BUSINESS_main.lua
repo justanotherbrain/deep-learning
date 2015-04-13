@@ -190,16 +190,17 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     end
     local function feval(x) 
         model:training()
+        model:zeroGradParameters()
         if opt.sentenceDim == 0 then
-          minibatch:copy(data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)))
+          minibatch[{}] = (data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2)))
         else
-          minibatch:copy(data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2), 1, data:size(3)))
+          minibatch[{}] = (data:sub(opt.idx, opt.idx + opt.minibatchSize - 1, 1, data:size(2), 1, data:size(3)))
         end
-        minibatch_labels:copy(labels:sub(opt.idx, opt.idx + opt.minibatchSize - 1))
+        minibatch_labels[{}] = (labels:sub(opt.idx, opt.idx + opt.minibatchSize - 1))
         local f = model:forward(minibatch)
         local minibatch_loss = criterion:forward(f, minibatch_labels)
-        model:zeroGradParameters()
-        model:backward(minibatch, criterion:backward(model.output, minibatch_labels))
+        local df_do = criterion:backward(model.output, minibatch_labels)
+        model:backward(minibatch, df_do)
         
         return minibatch_loss, grad_parameters
     end
