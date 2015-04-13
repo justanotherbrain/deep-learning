@@ -210,6 +210,7 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     local olderr = err + 1
     --If error is increasing or not decreasing a lot, or times up, quit
     while olderr - err  > opt.errThresh and elapsed/60  < opt.maxTime  do
+        print('epoch: '..epoch)
         local order = torch.randperm(nBatches) -- not really good randomization
         for batch=1,nBatches do
             opt.idx = (order[batch] - 1) * opt.minibatchSize + 1
