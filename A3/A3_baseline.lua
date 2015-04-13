@@ -12,6 +12,8 @@ ffi = require('ffi')
 -- word2vec_table['word'] = vector
 function load_word2vec(path, inputDim)
     print('Using custom word vectors')
+    local f = io.open(opt.wordTable, "r")
+i   if f ~= nil then return f end
     local word2vec_file = io.open(path)
     local word2vec_table = {}
 
@@ -37,6 +39,8 @@ function load_word2vec(path, inputDim)
         end
         line = word2vec_file:read("*l")
     end
+    print('Saving dictionary as torch file for later')
+    torch.save(opt.wordTable, word2vec_table)
     return word2vec_table
 end
 
