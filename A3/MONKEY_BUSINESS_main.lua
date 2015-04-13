@@ -7,8 +7,6 @@ torch.manualSeed(123)
 ffi = require('ffi')
 
 
---- Parses and loads the word2vec word vectors into a hash table:
--- word2vec_table['word'] = vector
 function load_word2vec(opt)
     local path = opt.wordVectorPath
     local inputDim = opt.inputDim
@@ -45,8 +43,7 @@ function load_word2vec(opt)
     return word2vec_table
 end
 
---- Parses and loads the wordVector word vectors into a hash table:
--- wordVector_table['word'] = vector
+--Load word vectors using glove or w2v
 function load_wordVector(opt)
     local inputDim = opt.inputDim
     local path = opt.wordVectorPath
@@ -127,6 +124,7 @@ function preprocess_data(raw_data, wordvector_table, opt)
     return data, labels
 end
 
+--Unlike above, this saves up to sentenceDim words in a matrix and zero pads the beginning and end of the matrix.
 function preprocess_sentence(raw_data, wordvector_table, opt)
     --This code is very similar to the code above, but words are saved instead of added
     local totalSamples = raw_data.index:size(1) * raw_data.index:size(2)
@@ -169,7 +167,7 @@ function preprocess_sentence(raw_data, wordvector_table, opt)
 
     return data, labels
 end
-
+--This is essentially the baseline, optimized to work with cuda and with some output=related changes
 function train_model(model, criterion, data, labels, test_data, test_labels, opt)
 
     if opt.type == 'cuda' then model = model:cuda() end
@@ -233,7 +231,7 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
 
     print('Final validation error: ', err)
 end
-
+--Same as baseline
 function test_model(model, data, labels, opt)
     model:evaluate()
     local err = 0
@@ -247,7 +245,7 @@ function test_model(model, data, labels, opt)
 
     return err/labels:size(1)
 end
-
+--All available parameters
 function ParseCommandLine()
     local cmd = torch.CmdLine()
     cmd:option('-save', '', 'Where to save information.')
@@ -290,6 +288,7 @@ function ParseCommandLine()
     return opt 
 end
 
+--Outputs a model and criterion. This uses a version of the bag of words that will work for any inputDim
 function ModelCrit(opt)
 -- construct model:
     model = nn.Sequential()
@@ -319,6 +318,7 @@ function ModelCrit(opt)
     return model, criterion
 end
 
+--Our model. This is a shallower version of Xiang's model, which he used on characters, where instead we use it for word vectors
 function SentenceModelCrit(opt)
   model = nn.Sequential()
   local transformedDim = 256
@@ -356,6 +356,8 @@ function SentenceModelCrit(opt)
   return model, criterion
 
 end
+
+--Renamed Main() with minor changes to account for using w2v and validation
 function Train(opt)
     print("Parse args...")
     print(opt)
@@ -388,6 +390,7 @@ function Train(opt)
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
 end
 
+--This is the function that is used to read a single review
 function process_sentence(data, wordvector_table, opt)
   local sentence = ffi.string(data):lower()
   local sentenceTensor = torch.zeros(opt.sentenceDim + 2 * opt.padding, opt.inputDim)
@@ -403,7 +406,7 @@ function process_sentence(data, wordvector_table, opt)
   return sentenceTensor 
 end
 
-
+--Read an int n, then the following n lines, interpreted to be each a different review
 function ReadSentence(opt)
   local model = torch.load(opt.filename):float()
   local n = tonumber(io.read("*l"))
@@ -416,12 +419,14 @@ function ReadSentence(opt)
   end
 end
 
+--Debugging code
 function DebugTest(opt)
   model, crit = SentenceModelCrit(opt)
   f = torch.Tensor(640, opt.padding * 2 + opt.sentenceDim, opt.inputDim)
   print(model:forward(f):size())
   torch.save(opt.filename, model)
 end
+--EXECUTION STARTS HERE
 local opt = ParseCommandLine()
 if opt.train == 1 then
   Train(opt)
