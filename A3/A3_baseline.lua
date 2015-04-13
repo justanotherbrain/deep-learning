@@ -132,7 +132,7 @@ end
 function train_model(model, criterion, data, labels, test_data, test_labels, opt)
 
     parameters, grad_parameters = model:getParameters()
-    
+    local logger = optim.Logger(paths.concat(opt.save, 'test.log'))
     -- optimization functional to train the model with torch's optim library
     local minibatch 
     if opt.sentenceDim == 0 then
@@ -182,7 +182,10 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
           opt.learningRate = opt.learningRate / 2
         end
         elapsed = os.difftime(os.time(),time)
-        print("elapsed: "..elapsed/60,  "epoch: "..epoch, "error: "..err)
+        testLogger:add{['elapsed']=elapsed/60,['epoch']=epoch,['error']= err}
+        
+        print("Saving model")
+        torch.save(opt.filename, model:double())
         epoch = epoch + 1
     end
 
@@ -205,6 +208,7 @@ end
 
 function ParseCommandLine()
     local cmd = torch.CmdLine()
+    cmd:option('-save', '','Where to save information.')
     cmd:option('-glovePath','WordVectors/glove.6B.50d.txt','path to raw glove data .txt file')
     cmd:option('-dataPath','/scratch/courses/DSGA1008/A3/data/train.t7b','path to data file')
     cmd:option('-inputDim',50,'dim of word vectors')
@@ -216,7 +220,7 @@ function ParseCommandLine()
     cmd:option('-idx', 1,'')
     cmd:option('-type', 'double', 'cuda,float,double')
     cmd:option('-tlep', 'inf','inf=maxpool, any positive number=tlep')
-    cmd:option('-errThresh', 0.005, 'percentage diff of error before stopping')
+    cmd:option('-errThresh', 0.00005, 'percentage diff of error before stopping')
     cmd:option('-learningRateDecay', 10, 'halve the learning rate every n epochs')
     cmd:option('-maxTime', 50, 'maximum training time (minutes)')
     cmd:option('-sentenceDim', 0, 'Number of words to use in sentence. If zero, use bag of words')
@@ -342,7 +346,6 @@ function main()
     print("Train model")
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
     
-    print("Saving model")
-    torch.save(opt.filename, model:double())
+
 end
 main()
