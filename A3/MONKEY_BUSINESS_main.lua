@@ -13,7 +13,7 @@ function load_word2vec(opt)
     local path = opt.wordVectorPath
     local inputDim = opt.inputDim
     print('Using custom word vectors')
-    local f = io.open(opt.wordTable, "r")
+    local f = torch.load(opt.wordTable)
     if f ~= nil then return f end
     local word2vec_file = io.open(path)
     local word2vec_table = {}
@@ -115,7 +115,7 @@ function preprocess_data(raw_data, wordvector_table, opt)
             for word in document:gmatch("%S+") do
                 if wordvector_table[word:gsub("%p+", "")] then
                     doc_size = doc_size + 1
-                    data[k]:add(wordvector_table[word:gsub("%p+", "")])
+                    data[k]:add(wordvector_table[word:gsub("%p+", "")]:float())
                 end
             end
 
@@ -132,8 +132,8 @@ function preprocess_sentence(raw_data, wordvector_table, opt)
     local totalSamples = raw_data.index:size(1) * raw_data.index:size(2)
     local samplesPerClass = raw_data.index:size(2)
     if opt.debug == 1 then
-      totalSamples = 2 * opt.minibatchSize * raw_data.index:size(1)
-      samplesPerClass = 2 * opt.minibatchSize
+      totalSamples = 100 * opt.minibatchSize * raw_data.index:size(1)
+      samplesPerClass = 100 * opt.minibatchSize
     end
     local data = torch.zeros(totalSamples, opt.sentenceDim + 2 * opt.padding, opt.inputDim)
     local labels = torch.zeros(totalSamples)
@@ -210,24 +210,23 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     local olderr = err + 1
     --If error is increasing or not decreasing a lot, or times up, quit
     while olderr - err  > opt.errThresh and elapsed/60  < opt.maxTime  do
+        if opt.type == 'cuda' then model = model:cuda() end
         print('epoch: '..epoch)
         local order = torch.randperm(nBatches) -- not really good randomization
         for batch=1,nBatches do
             opt.idx = (order[batch] - 1) * opt.minibatchSize + 1
-            optim.sgd(feval, parameters, opt)
+            temp = {idx = opt.idx, learningRate = opt.learningRate, momentum = opt.momentum, learningRateDecay = opt.learningRateDecay}
+            optim.sgd(feval, parameters, temp)
         end
         --Update the errors
         local newerr = test_model(model, test_data, test_labels, opt)
         olderr = err 
         err = newerr
-        if epoch % opt.learningRateDecay == 0 then
-          opt.learningRate = opt.learningRate / 2
-        end
         elapsed = os.difftime(os.time(),time)
         logger:add{['elapsed']=elapsed/60,['epoch']=epoch,['error']= err}
-        
+        print(err)
         print("Saving model")
-        torch.save(opt.filename, model:double())
+        torch.save(opt.filename, model:float())
         epoch = epoch + 1
     end
 
@@ -265,16 +264,17 @@ function ParseCommandLine()
     cmd:option('-type', 'double', 'cuda,float,double')
     cmd:option('-tlep', 'inf','inf=maxpool, any positive number=tlep')
     cmd:option('-errThresh', 0.00005, 'percentage diff of error before stopping')
-    cmd:option('-learningRateDecay', 10, 'halve the learning rate every n epochs')
+    cmd:option('-learningRateDecay', 0.001, '')
     cmd:option('-maxTime', 50, 'maximum training time (minutes)')
     cmd:option('-sentenceDim', 100, 'Number of words to use in sentence. If zero, use bag of words')
     cmd:option('-filename', 'model.net', 'Filename of model to output')
     cmd:option('-padding', 7, 'padding for sentence')
-    cmd:option('-train', 0, ' 1=train 2=read other=debug in single sentence')
+    cmd:option('-train', 1, ' 1=train 2=read other=debug in single sentence')
     opt = cmd:parse(arg or {})
     if opt.debug == 1 then
       print('DEBUG MODE ACTIVATED!')
-      opt.maxEpochs = 1
+      opt.minibatchSize = 128 
+      opt.padding = 3
       opt.valPerc = 50
     end
     if opt.type == 'cuda' then
@@ -284,8 +284,8 @@ function ParseCommandLine()
       print('Using Cuda')
       require 'cutorch'
       require 'cunn'
-      torch.setdefaulttensortype('torch.FloatTensor')
     end
+    torch.setdefaulttensortype('torch.FloatTensor')
     return opt 
 end
 
@@ -295,7 +295,7 @@ function ModelCrit(opt)
    
     -- if you decide to just adapt the baseline code for part 2, you'll probably want to make this linear and remove pooling
     model:add(nn.TemporalConvolution(1, 20, 10, 1))
-    
+    local nout = opt.inputDim - 10 + 1
     --------------------------------------------------------------------------------------
     -- Replace this temporal max-pooling module with your log-exponential pooling module:
     --------------------------------------------------------------------------------------
@@ -305,9 +305,9 @@ function ModelCrit(opt)
     else
       model:add(nn.TemporalLogExpPooling(3,1, tonumber(opt.tlep)))
     end
-    
-    model:add(nn.Reshape(20*39, true))
-    model:add(nn.Linear(20*39, 5))
+    nout = nout - 3 + 1
+    model:add(nn.Reshape(20*nout, true))
+    model:add(nn.Linear(20*nout, 5))
     model:add(nn.LogSoftMax())
 
     criterion = nn.ClassNLLCriterion()
@@ -375,7 +375,6 @@ function Train(opt)
     end
     print("Create model and criterion...")
     print(model)
-
     -- split data into makeshift training and validation sets
     local training_data = processed_data:sub(1, processed_data:size(1)*(1-opt.valPerc/100), 1, processed_data:size(2))
     local training_labels = labels:sub(1, processed_data:size(1)*(1-opt.valPerc/100))
