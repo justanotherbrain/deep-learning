@@ -395,6 +395,7 @@ end
 
 --This is the function that is used to read a single review
 function process_sentence(data, wordvector_table, opt)
+  doc_size = 0
   local sentence = ffi.string(data):lower()
   local sentenceTensor = torch.zeros(opt.sentenceDim + 2 * opt.padding, opt.inputDim)
   for word in sentence:gmatch("%S+") do
