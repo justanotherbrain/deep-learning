@@ -37,7 +37,7 @@ function TemporalLogExpPooling:__init(kW, dW, beta)
    self.model:add(self.convLayer)
    self.model:add(nn.Transpose())
 
-   self.model:add(self.MulConstant(1/self.kW))
+   self.model:add(nn.MulConstant(1/self.kW))
    
    self.model:add(nn.Log())
    
