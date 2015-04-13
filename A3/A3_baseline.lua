@@ -7,16 +7,17 @@ dofile 'skel.lua'
 torch.manualSeed(123)
 ffi = require('ffi')
 
---- Parses and loads the GloVe word vectors into a hash table:
--- glove_table['word'] = vector
-function load_glove(path, inputDim)
-    
-    local glove_file = io.open(path)
-    local glove_table = {}
 
-    local line = glove_file:read("*l")
+--- Parses and loads the word2vec word vectors into a hash table:
+-- word2vec_table['word'] = vector
+function load_word2vec(path, inputDim)
+    print('Using custom word vectors')
+    local word2vec_file = io.open(path)
+    local word2vec_table = {}
+
+    local line = word2vec_file:read("*l")
     while line do
-        -- read the GloVe text file one line at a time, break at EOF
+        -- read the word2vec text file one line at a time, break at EOF
         local i = 1
         local word = ""
         for entry in line:gmatch("%S+") do -- split the line at each space
@@ -24,20 +25,56 @@ function load_glove(path, inputDim)
                 -- word comes first in each line, so grab it and create new table entry
                 word = entry:gsub("%p+", ""):lower() -- remove all punctuation and change to lower case
                 if string.len(word) > 0 then
-                    glove_table[word] = torch.zeros(inputDim, 1) -- padded with an extra dimension for convolution
+                    word2vec_table[word] = torch.zeros(inputDim, 1) -- padded with an extra dimension for convolution
                 else
                     break
                 end
             else
                 -- read off and store each word vector element
-                glove_table[word][i-1] = tonumber(entry)
+                word2vec_table[word][i-1] = tonumber(entry)
             end
             i = i+1
         end
-        line = glove_file:read("*l")
+        line = word2vec_file:read("*l")
+    end
+    return word2vec_table
+end
+
+--- Parses and loads the wordVector word vectors into a hash table:
+-- wordVector_table['word'] = vector
+function load_wordVector(opt)
+    local inputDim = opt.inputDim
+    local path = opt.wordVectorPath
+    if opt.wv == 'wv' then
+      return load_word2vec(path, inputDim)
+    end
+    local wordVector_file = io.open(path)
+    local wordVector_table = {}
+
+    local line = wordVector_file:read("*l")
+    while line do
+        -- read the wordVector text file one line at a time, break at EOF
+        local i = 1
+        local word = ""
+        for entry in line:gmatch("%S+") do -- split the line at each space
+            if i == 1 then
+                -- word comes first in each line, so grab it and create new table entry
+                word = entry:gsub("%p+", ""):lower() -- remove all punctuation and change to lower case
+                if string.len(word) > 0 then
+                    wordVector_table[word] = torch.zeros(inputDim, 1) -- padded with an extra dimension for convolution
+                else
+                    break
+                end
+            else
+                -- read off and store each word vector element
+                wordVector_table[word][i-1] = tonumber(entry)
+            end
+            i = i+1
+        end
+        line = wordVector_file:read("*l")
     end
     
-    return glove_table
+    return wordVector_table
 end
 
 --- Here we simply encode each document as a fixed-length vector 
@@ -182,7 +219,7 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
           opt.learningRate = opt.learningRate / 2
         end
         elapsed = os.difftime(os.time(),time)
-        testLogger:add{['elapsed']=elapsed/60,['epoch']=epoch,['error']= err}
+        logger:add{['elapsed']=elapsed/60,['epoch']=epoch,['error']= err}
         
         print("Saving model")
         torch.save(opt.filename, model:double())
@@ -208,10 +245,11 @@ end
 
 function ParseCommandLine()
     local cmd = torch.CmdLine()
-    cmd:option('-save', '','Where to save information.')
-    cmd:option('-glovePath','WordVectors/glove.6B.50d.txt','path to raw glove data .txt file')
+    cmd:option('-save', '', 'Where to save information.')
+    cmd:option('-wv', 'wv', 'wv= custom,glove=not')
+    cmd:option('-wordVectorPath','WordVectors/dictionary.txt','path to raw wordVector data .txt file')
     cmd:option('-dataPath','/scratch/courses/DSGA1008/A3/data/train.t7b','path to data file')
-    cmd:option('-inputDim',50,'dim of word vectors')
+    cmd:option('-inputDim',200,'dim of word vectors')
     cmd:option('-debug', 0, 'debug=reduced data set')
     cmd:option('-valPerc',10,'percentage of all samples to use for validation')
     cmd:option('-minibatchSize', 128,'minibatch size')
@@ -223,7 +261,7 @@ function ParseCommandLine()
     cmd:option('-errThresh', 0.00005, 'percentage diff of error before stopping')
     cmd:option('-learningRateDecay', 10, 'halve the learning rate every n epochs')
     cmd:option('-maxTime', 50, 'maximum training time (minutes)')
-    cmd:option('-sentenceDim', 0, 'Number of words to use in sentence. If zero, use bag of words')
+    cmd:option('-sentenceDim', 100, 'Number of words to use in sentence. If zero, use bag of words')
     cmd:option('-filename', 'model.net', 'Filename of model to output')
     cmd:option('-padding', 7, 'padding for sentence')
     opt = cmd:parse(arg or {})
@@ -315,17 +353,17 @@ function main()
     local opt = ParseCommandLine()
     print(opt)
     print("Loading word vectors...")
-    local glove_table = load_glove(opt.glovePath, opt.inputDim)
+    local wordVector_table = load_wordVector(opt)
     
     print("Loading raw data...")
     local raw_data = torch.load(opt.dataPath)
     
     print("Computing document input representations...")
     if opt.sentenceDim == 0 then
-      processed_data, labels = preprocess_data(raw_data, glove_table, opt)
+      processed_data, labels = preprocess_data(raw_data, wordVector_table, opt)
       model, criterion = ModelCrit(opt)
     else
-      processed_data, labels = preprocess_sentence(raw_data, glove_table, opt)
+      processed_data, labels = preprocess_sentence(raw_data, wordVector_table, opt)
       model, criterion = SentenceModelCrit(opt)
     end
     print("Create model and criterion...")
@@ -348,5 +386,5 @@ function DebugTest()
   f = torch.Tensor(640, opt.padding * 2 + opt.sentenceDim, opt.inputDim)
   print(model:forward(f):size())
 end
-DebugTest()
---main()
+--DebugTest()
+main()
