@@ -15,8 +15,6 @@ function load_word2vec(opt)
     if ignore ~= nil then
       io.close(ignore)
       return torch.load(opt.wordTable)
-    else
-      io.close(ignore)
     end
     local word2vec_file = io.open(path)
     local word2vec_table = {}
