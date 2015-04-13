@@ -11,8 +11,13 @@ function load_word2vec(opt)
     local path = opt.wordVectorPath
     local inputDim = opt.inputDim
     print('Using custom word vectors')
-    local f = torch.load(opt.wordTable)
-    if f ~= nil then return f end
+    local ignore = io.open(opt.wordTable,"r")
+    if ignore ~= nil then
+      io.close(ignore)
+      return torch.load(opt.wordTable)
+    else
+      io.close(ignore)
+    end
     local word2vec_file = io.open(path)
     local word2vec_table = {}
 
