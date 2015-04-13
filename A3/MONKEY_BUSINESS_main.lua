@@ -2,7 +2,6 @@ require 'torch'
 require 'nn'
 require 'optim'
 require 'xlua'
---dofile 'A3_skeleton.lua'
 dofile 'MONKEY_BUSINESS_A3_skeleton.lua'
 torch.manualSeed(123)
 ffi = require('ffi')
@@ -10,7 +9,9 @@ ffi = require('ffi')
 
 --- Parses and loads the word2vec word vectors into a hash table:
 -- word2vec_table['word'] = vector
-function load_word2vec(path, inputDim)
+function load_word2vec(opt)
+    local path = opt.wordVectorPath
+    local inputDim = opt.inputDim
     print('Using custom word vectors')
     local f = io.open(opt.wordTable, "r")
     if f ~= nil then return f end
@@ -50,7 +51,7 @@ function load_wordVector(opt)
     local inputDim = opt.inputDim
     local path = opt.wordVectorPath
     if opt.wv == 'wv' then
-      return load_word2vec(path, inputDim)
+      return load_word2vec(opt)
     end
     local wordVector_file = io.open(path)
     local wordVector_table = {}
