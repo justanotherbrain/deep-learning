@@ -270,7 +270,7 @@ function ParseCommandLine()
     cmd:option('-maxTime', 50, 'maximum training time (minutes)')
     cmd:option('-sentenceDim', 100, 'Number of words to use in sentence. If zero, use bag of words')
     cmd:option('-filename', 'model.net', 'Filename of model to output')
-    cmd:option('-padding', 7, 'padding for sentence')
+    cmd:option('-padding', 5, 'padding for sentence')
     cmd:option('-train', 1, ' 1=train 2=read other=debug in single sentence')
     opt = cmd:parse(arg or {})
     if opt.debug == 1 then
