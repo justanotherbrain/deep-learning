@@ -163,7 +163,6 @@ function preprocess_sentence(raw_data, wordvector_table, opt)
     end
 
     return data, labels
-
 end
 
 function train_model(model, criterion, data, labels, test_data, test_labels, opt)
@@ -248,6 +247,7 @@ function ParseCommandLine()
     cmd:option('-save', '', 'Where to save information.')
     cmd:option('-wv', 'wv', 'wv= custom,glove=not')
     cmd:option('-wordVectorPath','WordVectors/dictionary.txt','path to raw wordVector data .txt file')
+    cmd:option('-wordTable', 'dictionary.t7b', 'Torch-format vector table')
     cmd:option('-dataPath','/scratch/courses/DSGA1008/A3/data/train.t7b','path to data file')
     cmd:option('-inputDim',200,'dim of word vectors')
     cmd:option('-debug', 0, 'debug=reduced data set')
@@ -264,6 +264,7 @@ function ParseCommandLine()
     cmd:option('-sentenceDim', 100, 'Number of words to use in sentence. If zero, use bag of words')
     cmd:option('-filename', 'model.net', 'Filename of model to output')
     cmd:option('-padding', 7, 'padding for sentence')
+    cmd:option('-train', 0, ' 1=train 2=read other=debug in single sentence')
     opt = cmd:parse(arg or {})
     if opt.debug == 1 then
       print('DEBUG MODE ACTIVATED!')
@@ -348,10 +349,10 @@ function SentenceModelCrit(opt)
   return model, criterion
 
 end
-function main()
+function Train(opt)
     print("Parse args...")
-    local opt = ParseCommandLine()
     print(opt)
+    
     print("Loading word vectors...")
     local wordVector_table = load_wordVector(opt)
     
@@ -380,11 +381,43 @@ function main()
     print("Train model")
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
 end
-function DebugTest()
-  opt = {inputDim = 200, padding=2,sentenceDim=100}
+
+function process_sentence(data, wordvector_table, opt)
+  local sentence = ffi.string(data):lower()
+  local sentenceTensor = torch.zeros(opt.sentenceDim + 2 * opt.padding, opt.inputDim)
+  for word in sentence:gmatch("%S+") do
+      if wordvector_table[word:gsub("%p+", "")] then
+          doc_size = doc_size + 1
+          local wordVector = wordvector_table[word:gsub("%p+", "")]
+          sentenceTensor[{{opt.padding + doc_size},{}}] = wordVector
+          if doc_size == opt.sentenceDim then break end--Arbitrarily crop large review 
+      end
+  end
+  sentenceTensor = sentenceTensor:reshape(1,opt.sentenceDim + 2 * opt.padding,opt.inputDim)
+  return sentenceTensor 
+end
+
+
+function ReadSentence(opt)
+  local model = torch.load(opt.filename)
+  local sentenceRaw = io.read("*l")
+  local wordvector_table = torch.load(opt.wordTable)
+  local sentence = process_sentence(sentenceRaw, wordvector_table, opt)
+  local _, argmax = model:forward(sentence):max(2)
+  print(argmax[1][1])
+end
+
+function DebugTest(opt)
   model, crit = SentenceModelCrit(opt)
   f = torch.Tensor(640, opt.padding * 2 + opt.sentenceDim, opt.inputDim)
   print(model:forward(f):size())
+  torch.save(opt.filename, model)
 end
---DebugTest()
-main()
+local opt = ParseCommandLine()
+if opt.train == 1 then
+  Train(opt)
+elseif opt.train == 2 then
+  ReadSentence(opt)
+else
+  DebugTest(opt)
+end
