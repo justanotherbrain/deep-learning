@@ -172,6 +172,7 @@ end
 
 function train_model(model, criterion, data, labels, test_data, test_labels, opt)
 
+    if opt.type == 'cuda' then model = model:cuda() end
     parameters, grad_parameters = model:getParameters()
     local logger = optim.Logger(paths.concat(opt.save, 'test.log'))
     -- optimization functional to train the model with torch's optim library
@@ -208,9 +209,9 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
     local time = os.time()
     local elapsed = 0
     local olderr = err + 1
+    
     --If error is increasing or not decreasing a lot, or times up, quit
     while olderr - err  > opt.errThresh and elapsed/60  < opt.maxTime  do
-        if opt.type == 'cuda' then model = model:cuda() end
         print('epoch: '..epoch)
         local order = torch.randperm(nBatches) -- not really good randomization
         for batch=1,nBatches do
@@ -226,7 +227,7 @@ function train_model(model, criterion, data, labels, test_data, test_labels, opt
         logger:add{['elapsed']=elapsed/60,['epoch']=epoch,['error']= err}
         print(err)
         print("Saving model")
-        torch.save(opt.filename, model:float())
+        torch.save(opt.filename, model)
         epoch = epoch + 1
     end
 
@@ -404,7 +405,7 @@ end
 
 
 function ReadSentence(opt)
-  local model = torch.load(opt.filename)
+  local model = torch.load(opt.filename):float()
   local n = tonumber(io.read("*l"))
   for i = 1,n do
     local sentenceRaw = io.read("*l")
