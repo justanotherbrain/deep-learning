@@ -6,7 +6,53 @@ dofile 'MONKEY_BUSINESS_A3_skeleton.lua'
 torch.manualSeed(123)
 ffi = require('ffi')
 
+--READ COMMAND LINE:
 
+function ParseCommandLine()
+    local cmd = torch.CmdLine()
+    cmd:option('-save', '', 'Where to save information.')
+    cmd:option('-wv', 'wv', 'wv= custom,glove=not')
+    cmd:option('-wordVectorPath','WordVectors/dictionary.txt','path to raw wordVector data .txt file')
+    cmd:option('-wordTable', 'dictionary.t7b', 'Torch-format vector table')
+    cmd:option('-dataPath','/scratch/courses/DSGA1008/A3/data/train.t7b','path to data file')
+    cmd:option('-inputDim',200,'dim of word vectors')
+    cmd:option('-debug', 0, 'debug=reduced data set')
+    cmd:option('-valPerc',10,'percentage of all samples to use for validation')
+    cmd:option('-minibatchSize', 128,'minibatch size')
+    cmd:option('-learningRate', 0.1,'learning rate for SGD')
+    cmd:option('-momentum', 0.1,'momentum in sgd') 
+    cmd:option('-idx', 1,'')
+    cmd:option('-type', 'double', 'cuda,float,double')
+    cmd:option('-tlep', 'inf','inf=maxpool, any positive number=tlep')
+    cmd:option('-errThresh', 0.00005, 'percentage diff of error before stopping')
+    cmd:option('-learningRateDecay', 0.001, '')
+    cmd:option('-maxTime', 50, 'maximum training time (minutes)')
+    cmd:option('-sentenceDim', 100, 'Number of words to use in sentence. If zero, use bag of words')
+    cmd:option('-filename', 'model.net', 'Filename of model to output')
+    cmd:option('-padding', 5, 'padding for sentence')
+    cmd:option('-train', 1, ' 1=train 2=read other=debug in single sentence')
+    opt = cmd:parse(arg or {})
+    if opt.debug == 1 then
+      print('DEBUG MODE ACTIVATED!')
+      opt.minibatchSize = 128 
+      opt.padding = 3
+      opt.valPerc = 50
+    end
+    if opt.type == 'cuda' then
+      if not opt.tlep == 'inf' then
+        print('ERROR. TLEP not stable with cuda.')
+      end
+      print('Using Cuda')
+      require 'cutorch'
+      require 'cunn'
+    end
+    torch.setdefaulttensortype('torch.FloatTensor')
+    return opt 
+end
+
+--LOAD WORD VECTORS
+
+--Load custom word2vec word vectors
 function load_word2vec(opt)
     local path = opt.wordVectorPath
     local inputDim = opt.inputDim
@@ -82,12 +128,9 @@ function load_wordVector(opt)
     return wordVector_table
 end
 
---- Here we simply encode each document as a fixed-length vector 
--- by computing the unweighted average of its word vectors.
--- A slightly better approach would be to weight each word by its tf-idf value
--- before computing the bag-of-words average; this limits the effects of words like "the".
--- Still better would be to concatenate the word vectors into a variable-length
--- 2D tensor and train a more powerful convolutional or recurrent model on this directly.
+--PREPROCESS:
+
+--Effectively the same as baseline, except debugging capabilities added
 function preprocess_data(raw_data, wordvector_table, opt)
     local totalSamples = raw_data.index:size(1) * raw_data.index:size(2)
     local samplesPerClass = raw_data.index:size(2)
@@ -127,7 +170,7 @@ function preprocess_data(raw_data, wordvector_table, opt)
     return data, labels
 end
 
---Unlike above, this saves up to sentenceDim words in a matrix and zero pads the beginning and end of the matrix.
+--Similar to baseline, except instead of adding word vectors, it saves a sequence of them to later apply a convolution on
 function preprocess_sentence(raw_data, wordvector_table, opt)
     --This code is very similar to the code above, but words are saved instead of added
     local totalSamples = raw_data.index:size(1) * raw_data.index:size(2)
@@ -170,6 +213,9 @@ function preprocess_sentence(raw_data, wordvector_table, opt)
 
     return data, labels
 end
+
+--TRAIN AND TEST:
+
 --This is essentially the baseline, optimized to work with cuda and with some output=related changes
 function train_model(model, criterion, data, labels, test_data, test_labels, opt)
 
@@ -248,50 +294,10 @@ function test_model(model, data, labels, opt)
 
     return err/labels:size(1)
 end
---All available parameters
-function ParseCommandLine()
-    local cmd = torch.CmdLine()
-    cmd:option('-save', '', 'Where to save information.')
-    cmd:option('-wv', 'wv', 'wv= custom,glove=not')
-    cmd:option('-wordVectorPath','WordVectors/dictionary.txt','path to raw wordVector data .txt file')
-    cmd:option('-wordTable', 'dictionary.t7b', 'Torch-format vector table')
-    cmd:option('-dataPath','/scratch/courses/DSGA1008/A3/data/train.t7b','path to data file')
-    cmd:option('-inputDim',200,'dim of word vectors')
-    cmd:option('-debug', 0, 'debug=reduced data set')
-    cmd:option('-valPerc',10,'percentage of all samples to use for validation')
-    cmd:option('-minibatchSize', 128,'minibatch size')
-    cmd:option('-learningRate', 0.1,'learning rate for SGD')
-    cmd:option('-momentum', 0.1,'momentum in sgd') 
-    cmd:option('-idx', 1,'')
-    cmd:option('-type', 'double', 'cuda,float,double')
-    cmd:option('-tlep', 'inf','inf=maxpool, any positive number=tlep')
-    cmd:option('-errThresh', 0.00005, 'percentage diff of error before stopping')
-    cmd:option('-learningRateDecay', 0.001, '')
-    cmd:option('-maxTime', 50, 'maximum training time (minutes)')
-    cmd:option('-sentenceDim', 100, 'Number of words to use in sentence. If zero, use bag of words')
-    cmd:option('-filename', 'model.net', 'Filename of model to output')
-    cmd:option('-padding', 5, 'padding for sentence')
-    cmd:option('-train', 1, ' 1=train 2=read other=debug in single sentence')
-    opt = cmd:parse(arg or {})
-    if opt.debug == 1 then
-      print('DEBUG MODE ACTIVATED!')
-      opt.minibatchSize = 128 
-      opt.padding = 3
-      opt.valPerc = 50
-    end
-    if opt.type == 'cuda' then
-      if not opt.tlep == 'inf' then
-        print('ERROR. TLEP not stable with cuda.')
-      end
-      print('Using Cuda')
-      require 'cutorch'
-      require 'cunn'
-    end
-    torch.setdefaulttensortype('torch.FloatTensor')
-    return opt 
-end
 
---Outputs a model and criterion. This uses a version of the bag of words that will work for any inputDim
+--MODELS:
+
+--Adapted version of baseline to handle any value for nDim
 function ModelCrit(opt)
 -- construct model:
     model = nn.Sequential()
@@ -360,7 +366,9 @@ function SentenceModelCrit(opt)
 
 end
 
---Renamed Main() with minor changes to account for using w2v and validation
+
+--MAIN:
+
 function Train(opt)
     print("Parse args...")
     print(opt)
@@ -393,6 +401,8 @@ function Train(opt)
     train_model(model, criterion, training_data, training_labels, test_data, test_labels, opt)
 end
 
+--COMMAND LINE PROCESSING:
+
 --This is the function that is used to read a single review
 function process_sentence(data, wordvector_table, opt)
   doc_size = 0
@@ -423,14 +433,15 @@ function ReadSentence(opt)
   end
 end
 
---Debugging code
+--DEBUGGING:
 function DebugTest(opt)
   model, crit = SentenceModelCrit(opt)
   f = torch.Tensor(640, opt.padding * 2 + opt.sentenceDim, opt.inputDim)
   print(model:forward(f):size())
   torch.save(opt.filename, model)
 end
---EXECUTION STARTS HERE
+
+--EXECUTION 
 local opt = ParseCommandLine()
 if opt.train == 1 then
   Train(opt)

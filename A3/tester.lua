@@ -1,4 +1,4 @@
-dofile 'skel.lua'
+dofile 'MONKEY_BUSINESS_A3_skeleton.lua'
 a = 3
 b = 2
 c = 1
