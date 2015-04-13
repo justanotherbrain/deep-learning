@@ -132,8 +132,8 @@ function preprocess_sentence(raw_data, wordvector_table, opt)
     local totalSamples = raw_data.index:size(1) * raw_data.index:size(2)
     local samplesPerClass = raw_data.index:size(2)
     if opt.debug == 1 then
-      totalSamples = 100 * opt.minibatchSize * raw_data.index:size(1)
-      samplesPerClass = 100 * opt.minibatchSize
+      totalSamples = 2 * opt.minibatchSize * raw_data.index:size(1)
+      samplesPerClass = 2 * opt.minibatchSize
     end
     local data = torch.zeros(totalSamples, opt.sentenceDim + 2 * opt.padding, opt.inputDim)
     local labels = torch.zeros(totalSamples)
