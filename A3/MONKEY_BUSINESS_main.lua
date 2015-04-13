@@ -414,9 +414,9 @@ end
 function ReadSentence(opt)
   local model = torch.load(opt.filename):float()
   local n = tonumber(io.read("*l"))
+  local wordvector_table = torch.load(opt.wordTable)
   for i = 1,n do
     local sentenceRaw = io.read("*l")
-    local wordvector_table = torch.load(opt.wordTable)
     local sentence = process_sentence(sentenceRaw, wordvector_table, opt)
     local _, argmax = model:forward(sentence):max(2)
     print(argmax[1][1])
