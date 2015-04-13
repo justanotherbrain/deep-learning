@@ -3,7 +3,7 @@ require 'nn'
 require 'optim'
 require 'xlua'
 --dofile 'A3_skeleton.lua'
-dofile 'skel.lua'
+dofile 'MONKEY_BUSINESS_A3_skeleton.lua'
 torch.manualSeed(123)
 ffi = require('ffi')
 
@@ -13,7 +13,7 @@ ffi = require('ffi')
 function load_word2vec(path, inputDim)
     print('Using custom word vectors')
     local f = io.open(opt.wordTable, "r")
-i   if f ~= nil then return f end
+    if f ~= nil then return f end
     local word2vec_file = io.open(path)
     local word2vec_table = {}
 
@@ -404,11 +404,14 @@ end
 
 function ReadSentence(opt)
   local model = torch.load(opt.filename)
-  local sentenceRaw = io.read("*l")
-  local wordvector_table = torch.load(opt.wordTable)
-  local sentence = process_sentence(sentenceRaw, wordvector_table, opt)
-  local _, argmax = model:forward(sentence):max(2)
-  print(argmax[1][1])
+  local n = tonumber(io.read("*l"))
+  for i = 1,n do
+    local sentenceRaw = io.read("*l")
+    local wordvector_table = torch.load(opt.wordTable)
+    local sentence = process_sentence(sentenceRaw, wordvector_table, opt)
+    local _, argmax = model:forward(sentence):max(2)
+    print(argmax[1][1])
+  end
 end
 
 function DebugTest(opt)
